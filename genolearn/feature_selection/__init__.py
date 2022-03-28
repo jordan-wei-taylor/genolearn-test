@@ -1,11 +1,31 @@
-from   genolearn.feature_selection.base import _feature_selection
 from   genolearn.logger                 import msg
 
 import numpy as np
 
+def base_feature_selection(dataloader, init, inner_loop, outer_loop, values, force_dense = False, force_sparse = False):
+    """
+    descr
+    """
+    ret, args, kwargs = init(dataloader)
+    for value in values:
+        for i, (x, label) in enumerate(dataloader.generator(value, force_dense = force_dense, force_sparse = force_sparse), 1):
+            inner_loop(ret, i, x, label, value, *args, **kwargs)
+        outer_loop(ret, i, value, *args, **kwargs)
+    return ret
 
 def fisher_score(dataloader, values):
+    """
+    Awesome description
 
+    Parameters
+    ----------
+        dataloader : genolearn.dataloader.DataLoader
+            asdasd 
+
+        values : list
+            adasda sdas 
+
+    """
     def init(dataloader):
         encode = {c : i for i, c in enumerate(set(dataloader.meta[dataloader.target]))}
 
@@ -45,4 +65,4 @@ def fisher_score(dataloader, values):
 
         ret[value] = S
 
-    return _feature_selection(dataloader, init, inner_loop, outer_loop, values, force_dense = True)
+    return base_feature_selection(dataloader, init, inner_loop, outer_loop, values, force_dense = True)
