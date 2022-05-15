@@ -149,9 +149,9 @@ if __name__ == '__main__':
 
                 utils.set_m(m)
                 
-                f = _data.init_write('features', None, 'txt', args.output_dir)
-                f.write(' '.join(features))
-                f.close()
+                gzf = _data.init_write('features', None, 'txt.gz', args.output_dir)
+                gzf.write(gzip.compress(' '.join(features).encode()))
+                gzf.close()
                 features.clear()
 
                 f = _data.init_write('meta', None, 'json', args.output_dir)

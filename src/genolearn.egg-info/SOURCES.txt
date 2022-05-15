@@ -1,3 +1,4 @@
+LICENSE
 README.md
 pyproject.toml
 setup.py
@@ -8,6 +9,7 @@ setup.py
 ./genolearn/dataloader.py
 ./genolearn/logger.py
 ./genolearn/metrics.py
+./genolearn/train.py
 ./genolearn/utils.py
 ./genolearn/feature_importance/__init__.py
 ./genolearn/feature_selection/__init__.py
@@ -18,4 +20,5 @@ setup.py
 genolearn.egg-info/PKG-INFO
 genolearn.egg-info/SOURCES.txt
 genolearn.egg-info/dependency_links.txt
+genolearn.egg-info/requires.txt
 genolearn.egg-info/top_level.txt
