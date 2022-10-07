@@ -31,6 +31,6 @@ setuptools.setup(
         'numpy>=1.22.3',
         'psutil>=5.9.0',
         'scikit-learn>=1.0.2',
-        'py7zr==0.18.6'
+        'py7zr'
     ]
 )
