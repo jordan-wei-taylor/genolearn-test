@@ -9,7 +9,6 @@ if __name__ == '__main__':
 
     import numpy  as np
 
-    import py7zr
     import json
     import gzip
     import re
@@ -159,16 +158,10 @@ if __name__ == '__main__':
                 r_dtype   = utils.get_dtype(n)
 
                 utils.set_m(m)
-               
-                f = _data.init_write('features', None, 'txt')
-                f.write(' '.join(features))
-                f.close()
 
-                with Waiting('compressing', 'compressed', 'features.7z'):
-                    with py7zr.SevenZipFile('features.7z', 'w') as archive:
-                        archive.writeall('features.txt')
-
-                os.remove('features.txt')
+                with Waiting('compressing', 'compressed', 'features.txt.gz'):
+                    with gzip.open('features.txt.gz', 'wb') as g:
+                        g.write(' '.join(features).encode())
                 
                 features.clear()
 

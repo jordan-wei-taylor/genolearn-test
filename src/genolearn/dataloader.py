@@ -3,9 +3,8 @@ from   genolearn._base import Dict
 import scipy.sparse
 
 import numpy  as np
-import pandas as pd
 
-import py7zr
+import gzip
 import json
 import os
 
@@ -46,14 +45,9 @@ class DataLoader():
         self._sparse    = os.path.join(path, 'sparse')
         self._dense     = os.path.join(path, 'dense')
 
-        df = pd.read_csv(meta_path)
-        if identifier is not None:
-            df = df.set_index(identifier)
+        meta = np.genfromtxt(meta_path, dtype = None, delimiter = ',', encoding = 'utf-8')
 
-        if group:
-            df[group] = df[group].apply(str)
-
-        self.meta  = df
+        self.meta  = dict(zip(meta[0], meta[1:].T))
 
         with open(os.path.join(path, 'meta.json')) as f:
             d      = json.load(f)
@@ -83,12 +77,14 @@ class DataLoader():
             column = self.group
         if self.meta is None:
             raise Exception('Meta data not loaded! Run the load_meta method first!')
-        if column and column not in self.meta.columns:
+        if column and column not in self.meta:
             raise Exception(f'"{column}" not a valid column in self.meta!')
-        if identifiers and self.meta.index.isin(identifiers).any():
-            return self.meta.loc[identifiers, self.target]
-        if identifiers and column and self.meta[column].isin(identifiers).any():
-            return self.meta.loc[self.meta[column].isin(identifiers),self.target]
+        rows = np.isin(self.meta[self.identifier], identifiers)
+        if identifiers and len(rows):
+            return self.meta[self.target][rows]
+        rows = np.isin(self.meta[column], identifiers)
+        if identifiers and column and len(rows):
+            return self.meta[self.target][rows]
         raise Exception()
         
     def _load_X(self, npz, features, sparse = None):
@@ -149,8 +145,8 @@ class DataLoader():
         -------
             Y : str or pandas.Series
         """
-        Y             = self._check_meta(*identifiers)
-        return np.array(Y).flatten()[0] if len(Y) == 1 else Y
+        Y = self._check_meta(*identifiers)
+        return Y[0] if len(Y) == 1 else Y
 
     def load(self, *identifiers, features = None, sparse = None):
         """
@@ -175,20 +171,28 @@ class DataLoader():
         y_train           = self.load_Y(*train_identifiers)
         y_test            = self.load_Y(*test_identifiers)
 
-        dummy             = pd.get_dummies(y_train)
-        label_counts      = dummy.sum()
-        labels            = label_counts.index[label_counts >= min_count]
+        def get_dummies(y, unique = None):
+            if unique is None:
+                unique, arg   = np.unique(y[1], return_inverse = True)
+                dummies       = np.eye(len(unique))[arg]
+                identifiers   = y[0]
+            else:
+                mask          = np.where(y[1][:,None] == unique)
+                dummies       = np.eye(len(unique))[mask[1]]
+                identifiers   = mask[0]
+            return unique, identifiers, dummies
+
+        unique, _, dummies = get_dummies(y_train)
+        label_counts       = dummies.sum(axis = 0)
+        labels             = unique[label_counts >= min_count]
 
         if target_subset:
             labels = [label for label in labels if label in target_subset]
 
         self._encoder     = {label : i for i, label in enumerate(labels)}
 
-        train_mask        = y_train.isin(self._encoder)
-        test_mask         = y_test.isin(self._encoder)
-
-        train_identifiers = train_mask.index[train_mask]
-        test_identifiers  = test_mask.index[test_mask]
+        train_identifiers = get_dummies(y_train, labels)[1]
+        test_identifiers  = get_dummies(y_test , labels)[1]
 
         return train_identifiers, test_identifiers
     
@@ -253,8 +257,8 @@ class DataLoader():
     def features(self, indices = None):
         """ Returns the features from `features.txt` at indices ``indices``  """
         if '_features' not in self.__dict__:
-            with py7zr.SevenZipFile(os.path.join(self.path, 'features.7z'), 'r') as archive:
-                self._features = archive.read()['features.txt'].read().decode().split()
+            with gzip.open(os.path.join(self.path, 'features.txt.gz')) as g:
+                self._features = g.read().decode().split()
         
         return self._features[:] if indices is None else [self._features[i] for i in indices]
 

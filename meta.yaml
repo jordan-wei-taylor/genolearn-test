@@ -1,10 +1,9 @@
 package:
   name: "genolearn"
-  version: "0.0.1"
+  version: "0.0.3"
 
 source:
   git_url: https://github.com/jordan-wei-taylor/genolearn
-  url: https://pypi.org/simple/py7zr/
 
 requirements:
   host:
@@ -15,11 +14,9 @@ requirements:
   run:
     - python
     - scipy>=1.7.3
-    - pandas>=1.4.1
     - numpy>=1.21.5
     - psutil>=5.8.0
     - scikit-learn>=1.0.2
-    - py7zr
 
 about:
   home: https://github.com/jordan-wei-taylor/genolearn
