@@ -29,6 +29,6 @@ setuptools.setup(
         'scipy>=1.8.0',
         'numpy>=1.22.3',
         'psutil>=5.9.0',
-        'sklearn'
+        'scikit-learn'
     ]
 )
