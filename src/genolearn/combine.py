@@ -7,7 +7,6 @@ if __name__ == '__main__':
     from   multiprocessing   import cpu_count, Pool
 
     import numpy  as np
-    import py7zr
     import json
     import gzip
     import re
@@ -64,8 +63,8 @@ if __name__ == '__main__':
 
     assert os.path.exists(args.output_dir)
 
-    with py7zr.SevenZipFile(f'{args.output_dir}/features.7z') as fz:
-        feature_set = fz.read()['features.txt'].read().decode().split()
+    with gzip.open(f'{args.output_dir}/features.txt.gz') as gz:
+        feature_set = gz.read().read().decode().split()
         
     args.n_processes = cpu_count() if args.n_processes == 'auto' else int(args.n_processes)
 

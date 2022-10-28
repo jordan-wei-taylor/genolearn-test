@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     selection  = dataloader.load_feature_selection(args.feature_selection)
 
-    features   = dataloader.features(selection[args.key])
+    features   = dataloader.features(selection[args.key].argsort()[::-1])
 
     with open(args.model, 'rb') as f:
         model = pickle.load(f)
@@ -33,6 +33,8 @@ if __name__ == '__main__':
 
     scores     = importance.feature_scores
     ranks      = importance.feature_ranks()
+
+    features   = features[ranks]
 
     with Writing(args.outpath):
         np.savez(args.outpath, features = features[:len(ranks)], ranks = ranks, scores = scores)

@@ -41,7 +41,7 @@ def base_feature_selection(dataloader, init, inner_loop, outer_loop, values, for
     args, kwargs = init(dataloader)
     if values:
         if aggregate:
-            values = dataloader.meta.index[dataloader.meta[dataloader.group].isin(values)]
+            values = dataloader.meta[dataloader.identifier][np.isin(dataloader.meta[dataloader.group], values)]
             for i, (x, label) in enumerate(dataloader.generator(*values, force_dense = force_dense, force_sparse = force_sparse), 1):
                 inner_loop(ret, i, x, label, 'all', *args, **kwargs)
             outer_loop(ret, i, 'all', *args, **kwargs)
@@ -51,7 +51,7 @@ def base_feature_selection(dataloader, init, inner_loop, outer_loop, values, for
                     inner_loop(ret, i, x, label, value, *args, **kwargs)
                 outer_loop(ret, i, value, *args, **kwargs)
     else:
-        values = dataloader.meta.index
+        values = dataloader.meta[dataloader.identifier]
         for i, (x, label) in enumerate(dataloader.generator(*values, force_dense = force_dense, force_sparse = force_sparse), 1):
             inner_loop(ret, i, x, label, 'all', *args, **kwargs)
         outer_loop(ret, i, 'all', *args, **kwargs)

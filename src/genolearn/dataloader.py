@@ -44,17 +44,18 @@ class DataLoader():
         
         self._sparse    = os.path.join(path, 'sparse')
         self._dense     = os.path.join(path, 'dense')
+        
+        if meta_path:
+            meta = np.genfromtxt(meta_path, dtype = None, delimiter = ',', encoding = 'utf-8')
 
-        meta = np.genfromtxt(meta_path, dtype = None, delimiter = ',', encoding = 'utf-8')
+            self.meta  = dict(zip(meta[0], meta[1:].T))
 
-        self.meta  = dict(zip(meta[0], meta[1:].T))
-
-        with open(os.path.join(path, 'meta.json')) as f:
-            d      = json.load(f)
-            self.n = d['n']
-            self.m = d['m']
-            
-        self.c = len(set(df[target]))
+            with open(os.path.join(path, 'meta.json')) as f:
+                d      = json.load(f)
+                self.n = d['n']
+                self.m = d['m']
+                
+            self.c = len(set(self.meta[target]))
 
     def _check_path(self, identifier, sparse):
         """
@@ -70,22 +71,6 @@ class DataLoader():
         if os.path.exists(npz):
             return npz
         # raise Exception(f'"{npz}" not a valid path!')
-
-    def _check_meta(self, *identifiers, column = None):
-        identifiers = [str(identifier) for identifier in identifiers]
-        if column is None:
-            column = self.group
-        if self.meta is None:
-            raise Exception('Meta data not loaded! Run the load_meta method first!')
-        if column and column not in self.meta:
-            raise Exception(f'"{column}" not a valid column in self.meta!')
-        rows = np.isin(self.meta[self.identifier], identifiers)
-        if identifiers and len(rows):
-            return self.meta[self.target][rows]
-        rows = np.isin(self.meta[column], identifiers)
-        if identifiers and column and len(rows):
-            return self.meta[self.target][rows]
-        raise Exception()
         
     def _load_X(self, npz, features, sparse = None):
         if sparse is None:
@@ -107,10 +92,15 @@ class DataLoader():
 
         return arr
 
-    def _get_identifiers(self, *values, column):
-        values = [str(value) for value in values]
-        self._check_meta(*values, column = column)            
-        identifiers = self._identifiers = self.meta.index[self.meta[column].isin(values)].values
+    def _get_identifiers(self, *values, column = None):
+        values = list(map(str, values))
+        if column is None:
+            mask_1 = np.isin(self.meta[self.identifier], values)
+            mask_2 = np.isin(self.meta[self.group], values)
+            mask   = mask_1 | mask_2
+        else:
+            mask   = np.isin(self.meta[column], values)
+        identifiers = self._identifiers = self.meta[self.identifier][mask]
         return identifiers
 
     def load_X(self, *identifiers, features = None, sparse = None):
@@ -129,7 +119,7 @@ class DataLoader():
                 the __init__.
 
         """
-        self._identifiers = identifiers
+        self._identifiers = self._get_identifiers(*identifiers)
         self._features    = features
         if f'{identifiers[0]}.npz' in os.listdir(self._sparse if sparse else self._dense):
             npzs = [self._check_path(identifier, sparse) for identifier in identifiers]
@@ -143,10 +133,11 @@ class DataLoader():
         """
         Returns
         -------
-            Y : str or pandas.Series
+            Y : numpy.ndarray
         """
-        Y = self._check_meta(*identifiers)
-        return Y[0] if len(Y) == 1 else Y
+        identifiers = self._get_identifiers(*identifiers)
+        Y = self.meta[self.target][np.isin(self.meta[self.identifier], identifiers)]
+        return Y if len(Y) > 1 else Y[0]
 
     def load(self, *identifiers, features = None, sparse = None):
         """
@@ -155,6 +146,7 @@ class DataLoader():
             X : load_X(\*identifiers, features = features, sparse = sparse)
             Y : load_Y(\*identifiers)
         """
+        identifiers = self._get_identifiers(*identifiers)
         return self.load_X(*identifiers, features = features, sparse = sparse), self.load_Y(*identifiers)
 
     def load_train_test_identifiers(self, train_identifiers, test_identifiers, min_count = 0, target_subset = None):
@@ -164,35 +156,28 @@ class DataLoader():
 
         Returns
         -------
-            train_identifiers : pandas.Index
-            test_identifiers : pandas.Index
-
+            train_identifiers : numpy.ndarray
+            test_identifiers  : numpy.ndarray
         """
+        train_identifiers = self.train_identifiers = self._get_identifiers(*train_identifiers)
+        test_identifiers  = self.test_identifiers  = self._get_identifiers(*test_identifiers)
+
         y_train           = self.load_Y(*train_identifiers)
         y_test            = self.load_Y(*test_identifiers)
 
-        def get_dummies(y, unique = None):
-            if unique is None:
-                unique, arg   = np.unique(y[1], return_inverse = True)
-                dummies       = np.eye(len(unique))[arg]
-                identifiers   = y[0]
-            else:
-                mask          = np.where(y[1][:,None] == unique)
-                dummies       = np.eye(len(unique))[mask[1]]
-                identifiers   = mask[0]
-            return unique, identifiers, dummies
+        unique, arg       = np.unique(y_train, return_inverse = True)
+        dummies           = np.eye(len(unique))[arg]
 
-        unique, _, dummies = get_dummies(y_train)
-        label_counts       = dummies.sum(axis = 0)
-        labels             = unique[label_counts >= min_count]
+        label_counts      = dummies.sum(axis = 0)
+        labels            = unique[label_counts >= min_count]
 
         if target_subset:
             labels = [label for label in labels if label in target_subset]
-
+        
         self._encoder     = {label : i for i, label in enumerate(labels)}
 
-        train_identifiers = get_dummies(y_train, labels)[1]
-        test_identifiers  = get_dummies(y_test , labels)[1]
+        train_identifiers = train_identifiers[np.isin(y_train, labels)]
+        test_identifiers  = test_identifiers [np.isin(y_test , labels)]
 
         return train_identifiers, test_identifiers
     
@@ -225,12 +210,12 @@ class DataLoader():
 
         Yields
         ------
-            x : load_X(identifier, features = features, sparse = sparse)
-            y : load_Y(identifier)
+            x : load_X(identifiers, features = features, sparse = sparse)
+            y : load_Y(identifiers)
         """
         _identifiers = []
         for identifier in identifiers:
-            if str(identifier) in self.meta[self.group].values:
+            if str(identifier) in self.meta[self.group]:
                 _identifiers += list(self._get_identifiers(str(identifier), column = self.group))
             else:
                 _identifiers.append(identifier)

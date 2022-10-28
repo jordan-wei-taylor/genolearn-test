@@ -4,15 +4,12 @@ def read(path):
     with open(path, encoding = 'utf-8') as f:
         return f.read()
 
-
 setuptools.setup(
     name="genolearn",
-    version="0.0.2",
+    version="0.0.4",
     author="Jordan Taylor",
     author_email="jt2006@bath.ac.uk",
     description="A machine learning toolkit for genome sequence data",
-    long_description=read('README.md'),
-    long_description_content_type="text/markdown",
     url="https://github.com/jordan-wei-taylor/genolearn",
     project_urls={
         "Bug Tracker": "https://github.com/jordan-wei-taylor/genolearn/issues",
@@ -21,14 +18,13 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": "src"},
-    packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
-    license=read('LICENSE'), 
     install_requires=[
         'scipy>=1.8.0',
         'numpy>=1.22.3',
         'psutil>=5.9.0',
-        'scikit-learn'
-    ]
+        'scikit-learn>=1.1.2'
+    ],
+    package = ['genolearn']
+
 )

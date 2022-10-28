@@ -11,7 +11,6 @@ def main(path, model, data_config, model_config, train, test, K, order, order_ke
     import warnings
     import shutil
     import numpy as np
-    import pandas as pd
     import os
     import json
     import pickle
@@ -60,13 +59,18 @@ def main(path, model, data_config, model_config, train, test, K, order, order_ke
     csv     = 'predictions.csv'
     js      = 'params.json'
 
-    df = pd.DataFrame(index = outputs['identifiers'], columns = ['target', 'predict'], data = np.array([target, predict]).T)
+    dump    = np.c_[outputs['identifiers'], np.array([target, predict]).T]
+    headers = ['identifier', 'target', 'predict']
 
     if probs:
         for i, label in enumerate(dataloader.encoder):
-            df[f'P({label})'] = probs[0][:,i]
+            dump = np.c_[dump, probs[0][:,i].astype(str)]
+            headers.append(label)
 
-    df.to_csv(csv)
+    dump = ','.join(headers) + '\n' + '\n'.join(','.join(row) for row in dump)
+
+    with open(csv, 'w') as f:
+        f.write(dump)
 
     with Writing(npz, inline = True):
         np.savez_compressed(npz, **outputs)
