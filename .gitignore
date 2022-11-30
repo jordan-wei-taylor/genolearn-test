@@ -1,12 +1,16 @@
-# additional files from running (I)Python
-__pycache__
-*ipynb_checkpoints*
-
 # virtual python env
 env
+
+# compile
+__pycache__
 
 # additional file from running tox
 .tox
 
-# readthedocs website build
+# local build
 build
+dist
+*.egg-info
+
+# conda build command
+conda-build.sh
