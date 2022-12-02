@@ -1,5 +1,6 @@
 from setuptools import setup
 from genolearn  import __version__
+from pathlib    import Path
 
 url = "https://github.com/jordan-wei-taylor/genolearn"
 
@@ -13,7 +14,8 @@ setup(
     author           = "Jordan Taylor",
     author_email     = "jt2006@bath.ac.uk",
     description      = "A machine learning toolkit for genome sequence data",
-    long_description = read('README.md'),
+    long_description = (Path(__file__) / 'README.md').read_text(),
+    long_description_content_type = 'text/markdown',
     license          = 'BSD-3-Clause',
     package          = ['genolearn'],
     url              = url,
