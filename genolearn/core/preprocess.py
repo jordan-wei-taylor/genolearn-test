@@ -1,8 +1,9 @@
+import shutil
 import numpy as np
 import os
 import re
 
-clean_sample   = lambda sample : sample[sample.index('/') + 1:] if '/' in sample else sample
+clean_sample   = lambda sample : sample.replace('/', '.')
 gather_feature = lambda line : line[:line.index(' ')]
 gather_samples = lambda line : list(map(clean_sample, re.findall(r'(?<= )[^: ]+(?=:)', line)))
 gather_counts  = lambda line : re.findall(r'(?<=:)[0-9]+', line)
@@ -24,7 +25,7 @@ def init(file, subpath = 'temp', ext = 'txt'):
 def add(object, i, count):
     object.write(f'{i} {count}\n')
     
-def core_preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, debug, verbose):
+def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max_features, verbose):
     """
     Preprocess a gunzip (gz) compressed text file containing genome sequence data of the following sparse format
 
@@ -36,7 +37,7 @@ def core_preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense
     into a directory of .npz files, a list of all the features, and some meta information containing number of 
     identifiers, sequences, and non-zero counts.
 
-    It is expected that the parameter `data` is in the `data-dir` directory set in the \033[1mactive config\033[0m file.
+    It is expected that the parameter `data` is in the `data_dir` directory set in the \033[1mactive config\033[0m file.
     See https://genolearn.readthedocs.io/tutorial/config for more details.
 
     \b\n
@@ -90,6 +91,9 @@ def core_preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense
         os.mkdir(preprocess_dir)
         os.chdir(preprocess_dir)
 
+        if 'temp' in os.listdir():
+            shutil.rmtree('temp')
+
         os.mkdir('temp')
         os.mkdir('feature-selection')
 
@@ -130,7 +134,7 @@ def core_preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense
                 if m % verbose == 0:
                     msg(f'{C:10,d} {m:10,d}')
                
-                if m == debug:
+                if m == max_features:
                     break
            
             if m % verbose:
@@ -151,7 +155,7 @@ def core_preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense
                 
                 features.clear()
 
-                f = init('meta', None, 'json')
+                f = init('info', None, 'json')
                 json.dump({'n' : len(unique), 'm' : m, 'max' : hi}, f)
                 f.close()
                
@@ -196,8 +200,256 @@ def core_preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense
             files.clear()
 
         os.rmdir('temp')
-
+        
         utils.create_log('preprocess')
     
 
     msg(f'executed "genolearn preprocess"')
+
+def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose):
+    """
+    Preprocess a gunzip (gz) compressed text file containing genome sequence data of the following sparse format
+
+        \b
+        sequence_1 | identifier_{1,1}:count_{1,1} identifier_{1,1}:count_{2,1} ...
+        sequence_2 | identifier_{2,1}:count_{2,1} identifier_{2,1}:count_{2,2} ...
+        ...
+
+    and combines the preprocessed data with the `preprocess_dir` directory set in the \033[1mactive config\033[0m file.
+    This relies on the user to have previously executed `genolearn preprocess`.
+
+    See https://genolearn.readthedocs.io/tutorial/combine for more details.
+    """
+
+    from   genolearn.logger       import msg, print_dict
+    from   genolearn.core.preprocess import gather_counts, gather_feature, gather_samples, init, add, get_dtype
+    from   genolearn              import utils
+    from   pathos.multiprocessing import cpu_count, Pool
+
+    import numpy  as np
+
+    import resource
+
+    import json
+    import gzip
+    import re
+    import os
+
+    assert os.path.exists(preprocess_dir)
+
+    limit = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+    resource.setrlimit(resource.RLIMIT_NOFILE, (limit, limit))
+
+    with gzip.open(os.path.join(preprocess_dir, 'features.txt.gz')) as gz:
+        feature_set = gz.read().decode().split()
+        
+    n_processes    = cpu_count() if n_processes == 'auto' else int(n_processes)
+
+    gather_feature = lambda line : line[:line.index(' ')]
+    gather_samples = lambda line : re.findall(r'[\w]+(?=:)', line)
+    gather_counts  = lambda line : re.findall(r'(?<=:)[\w]+', line)
+
+    first_run  = True
+    features   = []
+    exceptions = set()
+    C          = 0
+    hi         = 0
+    unique     = set()
+
+    if data.endswith('.gz'):
+        _open  = gzip.GzipFile
+        decode = lambda line : line.decode()
+    else:
+        _open  = open
+        decode = lambda line : line
+
+    with _open(data) as gz:
+       
+        os.chdir(preprocess_dir)
+        
+        if 'temp' in os.listdir():
+            shutil.rmtree('temp')
+        os.mkdir('temp')
+        
+        files = {}
+
+        while True:
+           
+            gz.seek(0)
+
+            skip    = False
+            skipped = False
+            c       = 0
+           
+            for m, line in enumerate(gz, 1):
+
+                line    = decode(line)
+
+                srrs    = gather_samples(line)
+                counts  = gather_counts(line)
+
+                if first_run:
+                    features.append(gather_feature(line))
+                    hi      = max(hi, *map(int, counts))
+                    unique |= set(srrs)
+
+                for SRR, count in zip(srrs, counts):
+                    if SRR not in exceptions:
+                        if SRR not in files:
+                            if skip:
+                                skipped = True
+                                continue
+                            files[SRR] = init(SRR)
+                            c         += 1
+                            C         += 1
+                            skip = c == batch_size
+                        add(files[SRR], m - 1, count)
+
+                if m % verbose == 0:
+                    msg(f'{C:10,d} {m:10,d}')
+               
+                if m == max_features:
+                    break
+           
+            if m % verbose:
+                msg(f'{C:10,d} {m:10,d}')
+
+            for f in files.values():
+                f.close()
+
+            if first_run:
+                first_run = False
+
+                n         = len(unique)
+                d_dtype   = get_dtype(hi)
+                c_dtype   = get_dtype(m)
+                
+                with open('info.json') as f:
+                    meta = json.load(f)
+                    n    = meta['n'] + n
+                    m    = meta['m']
+                    hi   = max(meta['max'], hi)
+
+                f = init('meta', None, 'json')
+                json.dump({'n' : n, 'm' : m, 'max' : hi}, f)
+                f.close()
+                
+                feature_overlap = np.nonzero(np.isin(features, feature_set, assume_unique = True))[0]
+
+                def to_sparse(npz, c, d):
+                    np.savez_compressed(os.path.join('sparse', npz), col = c.astype(c_dtype), data = d.astype(d_dtype))
+
+                def to_dense(npz, c, d):
+                    arr = np.zeros(m, dtype = d.dtype)
+                    arr[c] = d
+                    np.savez_compressed(os.path.join('dense', npz), arr = arr)
+               
+                def convert(file):
+                    txt  = os.path.join('temp', f'{file}.txt')
+                    npz  = f'{file}.npz'
+                    c, d = np.loadtxt(txt, dtype = c_dtype).T
+                    mask = np.nonzero(np.isin(c, feature_overlap, assume_unique = True))[0]
+                    for function in functions:
+                        function(npz, c[mask], d[mask])
+
+                    os.remove(txt)
+
+                functions = []
+                if 'sparse' in os.listdir():
+                    functions.append(to_sparse)
+
+                if 'dense' in os.listdir():
+                    functions.append(to_dense)
+           
+            with Pool(n_processes) as pool:
+                pool.map(convert, list(files))
+
+            if not skipped:
+                break
+
+            exceptions |= set(files)
+
+            if len(files) < batch_size:
+                break
+
+            files.clear()
+
+        os.rmdir('temp')
+
+        utils.create_log('combine')
+
+    msg(f'executed "genolearn combine"')
+
+
+def preprocess_meta(output, meta_path, identifier_column, target_column, group_column, train_values, test_values, ptrain):
+
+    from   genolearn.core.config import get_active
+
+    import pandas as pd
+    import json
+
+    active  = get_active()
+
+    file_dir = os.path.join(active['preprocess_dir'], 'sparse' if 'sparse' in os.listdir(active['preprocess_dir']) else 'dense')
+    files   = [file.replace('.npz', '') for file in os.listdir(file_dir)]
+    meta_df = pd.read_csv(meta_path).applymap(str)
+    meta_df[identifier_column] = meta_df[identifier_column].apply(clean_sample)
+    
+    valid   = set(files)
+
+    meta_df = meta_df.loc[meta_df[identifier_column].isin(valid)]
+
+    targets = sorted(set(meta_df[target_column]))
+
+    if group_column == 'None':
+        group_column                      = 'train_test'
+        n                                 = len(meta_df)
+        i                                 = int(n * ptrain + 0.5)
+        r                                 = np.random.permutation(n)
+        values                            = np.array(['Train'] * n)
+        values[r[i:]]                     = 'Test'
+        meta_df[group_column]             = values
+        
+    groups    = sorted(set(meta_df[group_column]))
+
+    meta_json = {}
+    for key, column in zip(['identifiers', 'targets'], [identifier_column, target_column]):
+        meta_json[key] = list(meta_df[column])
+
+    meta_json['search'] = {}
+    meta_json['group']  = {}
+    for i, row in meta_df.iterrows():
+        meta_json['search'][row[identifier_column]] = row[target_column]
+
+    for group in groups:
+        meta_json['group'][group] = list(meta_df.loc[meta_df[group_column] == group, identifier_column])
+
+    meta_json['counts']     = {}
+    for group in meta_json['group']:
+        meta_json['counts'][group] = {target : 0 for target in targets}
+        for identifier in meta_json['group'][group]:
+            meta_json['counts'][group][meta_json['search'][identifier]] += 1
+
+    meta_json['proportion'] = {}
+    for group in meta_json['counts']:
+        meta_json['proportion'][group] = {}
+        total = sum(meta_json['counts'][group].values())
+        for target in targets:
+            meta_json['proportion'][group][target] = meta_json['counts'][group][target] / total
+
+    meta_json['Train'] = []
+    meta_json['Test' ] = []
+
+    for group in groups:
+        if group in train_values:
+            meta_json['Train'].append(group)
+        elif group in test_values:
+            meta_json['Test'].append(group)
+    
+    path = os.path.join(active['preprocess_dir'], 'meta')
+    os.makedirs(path, exist_ok = True)
+
+    with open(os.path.join(path, output), 'w') as file:
+        print(json.dumps(meta_json, indent = 4), file = file)
+
+    print(f'created "{output}" in {path}')

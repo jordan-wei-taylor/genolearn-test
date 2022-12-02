@@ -91,7 +91,7 @@ def _convert_range(string):
     string = ','.join(ls)
     return string
 
-def _prompt(msg, type, default, default_option = True):
+def _prompt(msg, type, default, default_option = True, multiple = False):
 
     # user input
     value = input(msg + ': ')
@@ -102,29 +102,29 @@ def _prompt(msg, type, default, default_option = True):
             value = str(default)
         else:
             print('user input required!')
-            return _prompt(msg, type, default, default_option)
+            return _prompt(msg, type, default, default_option, multiple)
 
     # check range
     if 'range' in value:
 
         # warn and re-input if type is not int
-        if (type != click.INT) and not isinstance(type, (click.IntRange, IntRange)):
+        if (type != click.INT) and not isinstance(type, click.IntRange):
             _warn(value, type)
-            return _prompt(msg, type, default, default_option)
+            return _prompt(msg, type, default, default_option, multiple)
 
         # convert range string to list of integers
         value = _convert_range(value)
 
     # detect if multi-value input
     if ',' in value:
-        values = value.split(',')
+        values = re.split(' ?, ?', value)
 
         # check each value and return if correct inputs
         for value in values:
             check = _check(value, type)
             if not check:
                 _warn(value, type)
-                return _prompt(msg, type, default, default_option)
+                return _prompt(msg, type, default, default_option, multiple)
         values = [None if value == None else value for value in map(type, values)]
         return values
 
@@ -134,45 +134,34 @@ def _prompt(msg, type, default, default_option = True):
         if value == 'None':
             value = None
             return value
-        return type(value)
+        return [type(value)] if multiple else type(value)
     _warn(value, type)
-    return _prompt(msg, type, default, default_option)
+    return _prompt(msg, type, default, default_option, multiple)
     
+def _default(info):
+    if isinstance(info['type'], click.Choice) and len(info['type'].choices) == 1:
+        return info['type'].choices[0]
+    else:
+        return info.get('default', None)
+
 def prompt(params):
     prompts = []
     hi      = 0
-    for info in params.values():
-        prompt = _gen_prompt(info['prompt'], info['type'], info.get('default', None), 0, 'default' in info)
+    for key, info in params.items():
+        default = _default(info)
+        prompt = _gen_prompt(info.get('prompt', key), info['type'], default, 0, 'default' in info or default)
         prompts.append(prompt)
         hi     = max(hi, len(prompt))
     
     config = {}
-    for i, (param, info) in enumerate(params.items()):
+    for i, (key, info) in enumerate(params.items()):
         space   = hi - len(prompts[i])
-        default = info.get('default', None)
-        flag    = 'default' in info
-        prompt  =  _gen_prompt(info['prompt'], info['type'], default, space, flag)
-        value   = _prompt(prompt, info['type'], default, flag)
-        config[param] = value
+        default = _default(info)
+        flag    = 'default' in info or default
+        prompt  =  _gen_prompt(info.get('prompt', key), info['type'], default, space, flag)
+        value   = _prompt(prompt, info['type'], default, flag, info.get('multiple', False))
+        config[key] = value
     return config
-    
-class IntRange(click.IntRange):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def __call__(self, value):
-        if value is not None:
-            return super().__call__(value)
-
-class FloatRange(click.FloatRange):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def __call__(self, value):
-        if value is not None:
-            return super().__call__(value)
 
 START    = time()
 RAMSTART = get_process_memory()

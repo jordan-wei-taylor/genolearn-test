@@ -1,93 +1,102 @@
-def core_analyse(meta, target, group_by, test, min_count):
+def _analyse(meta, min_count, proportion):
+    
     import pandas as pd
-    import numpy  as np
 
-    df = pd.read_csv(meta)
+    count = pd.DataFrame(index = sorted(set(meta['targets'])))
 
-    if group_by:
-        unique        = sorted(set(df[target]))
-        counts        = {}
-        groups        = sorted(set(df[group_by]))
-        maxu          = max(map(len, unique))
-        maxuc         = 0
-        for group in groups:
-            counts[group] = {}
-            for u in unique:
-                counts[group][u] = len(df.loc[(df[group_by] == group) & (df[target] == u)])
-                maxuc            = max(maxuc, len(f'{counts[group][u]:,d}'))
-        
-        maxg   = max(map(len, map(str, groups)))
-        sumg   = max(map(sum, [counts[group].values() for group in groups]))
-        sumgc  = len(f'{sumg:,d}')
-        string = []
-        for group in groups:
-            string.append(f'{str(group):{maxg}s} ({sum(counts[group].values()):{sumgc},d})')
-            for u, c in counts[group].items():
-                string.append(f'  {u:{maxu}s} : {c:{maxuc},d}')
-            string.append('')
-        print('\n'.join(string[:-1]))
-        if test == []:
-            test = ['test']
-        if test and df[group_by].isin(test).any():
-            targets      = []
-            test_mask    = df[group_by].isin(test)
-            train_mask   = ~test_mask
-            train_counts = {}
-            for t in unique:
-                train_counts[t] = len(df.loc[train_mask & (df[target] == t)])           
-                if train_counts[t] >= min_count:
-                    targets.append(t)
-            if len(targets) < len(unique):
-                print(f'\nsuggested target subset list for training (count >= {min_count})')
-                print(','.join(targets))
-        return counts
+    for group in meta['group']:
+        for target in count.index:
+            count.loc[target, group] = meta['counts'][group][target]
+
+    for key in ['Train', 'Test']:
+        count[key] = 0
+        for group in meta[key]:
+            for identifier in meta['group'][group]:
+                count.loc[meta['search'][identifier], key] += 1
+
+    count['Global']    = count['Train'] + count['Test']
+    count.loc['Total'] = count.sum(axis = 0).copy()
+
+    suggested_subset = count.index[:-1][count['Train'].values[:-1] >= min_count]
+
+    if len(suggested_subset) == len(count.index):
+        suggested_subset = None
+
+    if proportion:
+        count.iloc[:-1] /= count.iloc[:-1].sum(axis = 0)
+        count.iloc[-1]   = count.iloc[-1] / count.iloc[-1,-1]
+        count *= 100
+        return count.round(2).applymap(lambda value : f'{value:6.2f}'), suggested_subset
     else:
-
-        unique, count = np.unique(df[target], return_counts = True)
-
-        maxu = max(map(len, unique))
-        maxc = max(map(len, [f'{c:,d}' for c in count]))
-        for u, c in zip(unique, count):
-            print(f'{u:{maxu}s} : {c:{maxc},d}')
-
-        return dict(zip(unique, count))
-
-def core_head(meta, num):
-    import pandas as pd
+        return count.applymap(int).applymap(lambda value : f'{value:6,d}'), suggested_subset
     
-    df      = pd.read_csv(meta)
-    array   = df.iloc[:num].T.reset_index().T.values.astype(str)
-    maxlen  = [max(map(len, a)) for a in array.T]
-    print(' | '.join(f'\033[1m{val:{m}s}\033[0m' for val, m in zip(array[0], maxlen)))
-    print(' + '.join('-' * m for m in maxlen))
-    print('\n'.join(' | '.join([f'{val:{m}s}' for val, m in zip(row, maxlen)]) for row in array[1:]))
+def analyse(meta, min_count, proportion):
+    import json
 
-def core_tail(meta, num):
+    with open(meta) as f:
+        meta = json.load(f)
+
+    count, subset = _analyse(meta, min_count, proportion)
+
+    maxlen1 = max(map(len, count.index))
+    maxlen2 = max([max(map(len, count.values.flatten())), max(map(len, count.columns))])
+
+    print(' ' * maxlen1 + ' | ' + ' | '.join(f'{col:>{maxlen2}s}' for col in count.columns))
+    print('-' * (maxlen1 + 1) + '+' + '+'.join('-' * (maxlen2 + 2) for _ in range(count.shape[1])))
+    for target in count.index:
+        print(f'{target:{maxlen1}s} | ' + ' | '.join(list(count.loc[target])))
+
+    if subset is not None:
+        print('\nsuggested target subset:', ', '.join(subset))
+
+def train_test_split(meta, output, ptrain, random_state):
+
+    import numpy as np
+    import json
+
+    identifiers = np.array(meta['identifiers'])
+    n           = len(identifiers)
+    i           = int(n * ptrain + 0.5)
+
+    np.random.seed(random_state)
+
+    r           = np.random.permutation(identifiers)
+
+    meta['group'] = {'Train' : list(r[:i]), 'Test' : list(r[-i:])}
+
+    with open(output, 'w') as f:
+        json.dump(meta, f)
+
+def _load_df(meta):
     import pandas as pd
+    import json
+
+    with open(meta) as f:
+        meta = json.load(f)
+
+    g  = []
+    for identifier in meta['identifiers']:
+        for group, identifiers in meta['group'].items():
+            if identifier in identifiers:
+                g.append(group)
+                continue
+
+    df = pd.DataFrame()
+    df['identifier'] = meta['identifiers']
+    df[' group']      = g
+    df[' target']     = meta['targets']
+    df.index        += 1
+    return df
+
+def head(meta, num):
+    df = _load_df(meta)
+    print(df.head(num))
     
-    df      = pd.read_csv(meta)
-    array   = df.iloc[-num:].T.reset_index().T.values.astype(str)
-    maxlen  = [max(map(len, a)) for a in array.T]
-    print(' | '.join(f'\033[1m{val:{m}s}\033[0m' for val, m in zip(array[0], maxlen)))
-    print(' + '.join('-' * m for m in maxlen))
-    print('\n'.join(' | '.join([f'{val:{m}s}' for val, m in zip(row, maxlen)]) for row in array[1:]))
 
-def core_train_test_split(meta, ptrain, random_state):
+def tail(meta, num):
+    df = _load_df(meta)
+    print(df.tail(num))
 
-    import numpy  as np
-    import pandas as pd
-
-    df = pd.read_csv(meta)
-
-    if random_state:
-        np.random.seed(int(random_state))
-
-    n  = len(df)
-    ix = np.random.permutation(n)
-
-    nr = int(ptrain * n + 0.5)
-
-    df.loc[:      , 'train_test'] = 'test'
-    df.loc[ix[:nr], 'train_test'] = 'train'
-
-    df.to_csv(meta, index = False, header = True)
+def sample(meta, num):
+    df = _load_df(meta)
+    print(df.sample(num))

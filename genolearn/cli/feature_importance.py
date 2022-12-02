@@ -17,27 +17,28 @@ def feature_importance():
     import os
 
     active = get_active()
-
-    info   = dict(train_dir = dict(prompt = 'train-dir', type = click.Path()),
-                  output    = dict(prompt = 'output', type = click.Path(), default = 'importance'))
+    meta   = os.listdir(os.path.join(active['preprocess_dir'], 'meta'))
+    info   = dict(train_dir = dict(type = click.Path()),
+                  output    = dict(type = click.Path(), default = 'importance'))
 
     params = prompt(info)
 
     params['train_dir'] = os.path.abspath(params['train_dir'])
     params['model']     = os.path.join(params['train_dir'], 'model.pickle')
-    selection_path      = os.path.join(params.pop('train_dir'), 'feature-selection.json')
     
     from   genolearn.logger import print_dict
 
     print_dict('executing "genolearn feature-importance" with parameters:', params)
     
-    with open(selection_path) as f:
-        selection = json.load(f)
-
+    with open(os.path.join(params.pop('train_dir'), 'train.log')) as f:
+        log = f.read()
+        log = json.loads('\n'.join(log.split('\n')[4:]))
+        selection = dict(feature_selection = log['feature_selection'], ascending = log['ascending'])
+        params['meta'] = log['meta']
+        
     params['feature_selection'] = selection['feature_selection']
-    params['key']               = selection['key']
     params['ascending']         = selection['ascending']
 
-    from   genolearn.core import core_feature_importance
+    from   genolearn.core.feature_importance import feature_importance
 
-    core_feature_importance(active['preprocess-dir'], **params)
+    feature_importance(**params)

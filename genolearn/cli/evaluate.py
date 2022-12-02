@@ -17,10 +17,10 @@ def evaluate():
     import os
 
     active = get_active()
-    path   = os.path.join(active['data-dir'], active['meta'])
+    path   = os.path.join(active['data_dir'], active['meta'])
 
-    info   = dict(train_dir = dict(prompt = 'train-dir', type = click.Path()),
-                  values = dict(prompt = 'values', type = click.STRING))
+    info   = dict(train_dir = dict(type = click.Path()),
+                  values    = dict(type = click.STRING))
 
     params = prompt(info)
     
@@ -30,7 +30,7 @@ def evaluate():
 
     from   genolearn.core          import core_evaluate
 
-    data_config = dict(path = active['preprocess-dir'], meta_path = os.path.join(active['data'], active['meta']),
+    data_config = dict(path = active['preprocess_dir'], meta_path = os.path.join(active['data'], active['meta']),
                         identifier = active['identifier'], target = active['target'], group = active['group'])
 
     params['data_config'] = data_config

@@ -12,10 +12,7 @@ def data():
     ...
 
 @data.command()
-@click.option('--group-by', default = '', help = 'perform analysis by <group_by> column')
-@click.option('--min-count', default = 10, help = 'minimum count for suggested target subset')
-@click.option('--test', default = '', help = 'identifiers to omit when computing statistics')
-def analyse(group_by, test, min_count):
+def analyse():
     """
     analyses the meta data.
 
@@ -34,47 +31,92 @@ def analyse(group_by, test, min_count):
     # additional suggestion for which target values should be taken forward for modelling
     >>> genolearn data analyse --group-by <group_by> --test <test>
     """
-    from genolearn.core import core_analyse
-    try:
-        test = list(map(int, test.split()))
-    except:
-        test = test.split()
+    from   genolearn.utils import prompt
+
     active = get_active()
-    meta   = os.path.join(active['data-dir'], active['meta'])
-    core_analyse(meta, active['target'], group_by, test, min_count)
+    metas = os.listdir(os.path.join(active['preprocess_dir'], 'meta'))
+    info  = dict(meta       = dict(type = click.Choice(metas)),
+                 min_count  = dict(type = click.IntRange(0), default = 10),
+                 proportion = dict(type = click.BOOL, default = False))
+
+    params = prompt(info)
+    params['meta'] = os.path.join(active['preprocess_dir'], 'meta', params['meta'])
+    from   genolearn.core.data import analyse
+    
+    if os.path.exists(params['meta']):
+        analyse(**params)
+    else:
+        print('execute genolearn preprocess first')
 
 @data.command()
-@click.argument('num', default = 10)
+@click.option('--num', default = 10)
 def head(num):
     """
     prints the first NUM rows of meta data.
     """
-    from genolearn.core import core_head
+    from genolearn.core.data import head
     active = get_active()
-    meta   = os.path.join(active['data-dir'], active['meta'])
-    core_head(meta, num)
+    metas  = os.listdir(os.path.join(active['preprocess_dir'], 'meta'))
+    if len(metas) == 1:
+        meta = metas[0]
+    else:
+        meta = click.prompt('meta', type = click.Choice(metas))
+    meta   = os.path.join(active['preprocess_dir'], 'meta', meta)
+    head(meta, num)
 
 @data.command()
-@click.argument('num', default = 10)
+@click.option('--num', default = 10)
 def tail(num):
     """
     prints the last NUM rows of meta data.
     """
-    from genolearn.core import core_tail
+    from genolearn.core.data import tail
     active = get_active()
-    meta   = os.path.join(active['data-dir'], active['meta'])
-    core_tail(meta, num)
+    metas  = os.listdir(os.path.join(active['preprocess_dir'], 'meta'))
+    if len(metas) == 1:
+        meta = metas[0]
+    else:
+        meta = click.prompt('meta', type = click.Choice(metas))
+    meta   = os.path.join(active['preprocess_dir'], 'meta', meta)
+    tail(meta, num)
 
 @data.command()
-@click.option('--ptrain', default = 0.75, help = 'proportion of data to be assigned "train"')
-@click.option('--random-state', default = None, help = 'random seed for reproducibility')
-def train_test_split(ptrain, random_state):
+@click.option('--num', default = 10)
+def sample(num):
+    """
+    prints the last NUM rows of meta data.
+    """
+    from genolearn.core.data import sample
+    active = get_active()
+    metas  = os.listdir(os.path.join(active['preprocess_dir'], 'meta'))
+    if len(metas) == 1:
+        meta = metas[0]
+    else:
+        meta = click.prompt('meta', type = click.Choice(metas))
+    meta   = os.path.join(active['preprocess_dir'], 'meta', meta)
+    sample(meta, num)
+
+@data.command()
+def train_test_split():
     """
     randomly assigns each row in meta data to be train or test.
     """
-    if random_state is not None:
-        random_state = int(random_state)
-    from genolearn.core import core_train_test_split
+    
+    from genolearn.utils import prompt
+    import json
+
+    info = dict(output = dict(prompt = 'output', type = click.STRING, default = 'default.meta'),
+                ptrain = dict(prompt = 'ptrain', type = click.FloatRange(0., 1.), default = 0.75),
+                random_state = dict(prompt = 'random-state', type = click.INT, default = None))
+
+    params = prompt(info)
+    
+    from genolearn.core import train_test_split
     active = get_active()
-    meta   = os.path.join(active['data-dir'], active['meta']) if active else None
-    core_train_test_split(meta, ptrain, random_state)
+
+    with open(os.path.join(active['preprocess_dir'], 'default.meta')) as f:
+        params['meta'] = json.load(f)
+
+    params['output'] = os.path.join(active['preprocess_dir'], params['output'])
+
+    train_test_split(**params)

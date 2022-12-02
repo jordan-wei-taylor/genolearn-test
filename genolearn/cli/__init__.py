@@ -1,8 +1,8 @@
 """
-cli doc
+genolearn cli
 """
 
-from   genolearn.cli.combine            import combine
+
 from   genolearn.cli.data               import data
 from   genolearn.cli.evaluate           import evaluate
 from   genolearn.cli.feature_importance import feature_importance
@@ -33,7 +33,6 @@ def cli():
     """
     ...
 
-cli.add_command(combine)
 cli.add_command(config)
 cli.add_command(data)
 cli.add_command(evaluate)

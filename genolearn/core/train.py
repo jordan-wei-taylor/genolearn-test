@@ -1,37 +1,37 @@
 
-def core_train(path, model, data_config, model_config, train, test, K, order, order_key, ascending, min_count, target_subset, metric, mean_func, overwrite, flag = True):
-    
+def train(output_dir, meta, model, model_config, feature_selection, num_features, ascending, min_count, target_subset, metric, aggregate_func, overwrite):
     params = locals().copy()
 
     import os
     
-    params.pop('flag')
-    path   = params['path'] = os.path.abspath(path)
+    output_dir = os.path.abspath(output_dir)
     
-    from   genolearn.logger import print_dict
 
-    command = (' ' if flag else '.').join(('genolearn', 'train'))
+    command = 'genolearn train'
 
     from genolearn.utils                 import create_log
     from genolearn.models.classification import get_model
     from genolearn.models                import grid_predictions
     from genolearn.dataloader            import DataLoader
     from genolearn.logger                import msg, Writing
-    
+    from genolearn.core.config           import get_active
+
     import warnings
     import shutil
     import numpy as np
     import os
     import json
     import pickle
-    
-    if os.path.exists(path):
-        if overwrite:
-            shutil.rmtree(path)
-        else:
-            return print(f'"{path}" already exists! Add the "--overwrite" flag to overwrite.')
 
-    os.makedirs(path)
+    active = get_active()
+
+    if os.path.exists(output_dir):
+        if overwrite:
+            shutil.rmtree(output_dir)
+        else:
+            return print(f'"{output_dir}" already exists! Add the "--overwrite" flag to overwrite.')
+
+    os.makedirs(output_dir)
 
     warnings.simplefilter("ignore")
     os.environ["PYTHONWARNINGS"] = "ignore"
@@ -48,35 +48,27 @@ def core_train(path, model, data_config, model_config, train, test, K, order, or
     kwargs     = {key : val for key, val in model_config.items() if isinstance(val, list)}
     common     = {key : val for key, val in model_config.items() if key not in kwargs}
 
-    if train[0] == 'train':
-        data_config['group'] = 'train_test'
-
-    dataloader = DataLoader(**data_config)
-    
-    if order and order_key:
-        selection = dataloader.load_feature_selection(order).rank(ascending = ascending)[order_key]
+    dataloader = DataLoader(active['preprocess_dir'], meta)
+    selection  = dataloader.load_feature_selection(feature_selection).argsort()[::-1 if ascending else 1]
 
     Model   = get_model(model)
     
-    outputs, params = grid_predictions(dataloader, train, test, Model, K, selection, common, min_count, target_subset, metric, mean_func, **kwargs)
-    
-    params['model'] = model
-    
+    outputs, params = grid_predictions(dataloader, Model, selection, num_features, common, min_count, target_subset, metric, aggregate_func, **kwargs)
+        
     model, predict, *probs = outputs.pop('best')
 
     target  = outputs['target']
 
-    npz     = os.path.join(path, 'results.npz')
-    pkl     = os.path.join(path, 'model.pickle')
-    csv     = os.path.join(path, 'predictions.csv')
-    js      = os.path.join(path, 'params.json')
-    fs      = os.path.join(path, 'feature-selection.json')
+    npz     = os.path.join(output_dir, 'results.npz')
+    pkl     = os.path.join(output_dir, 'model.pickle')
+    csv     = os.path.join(output_dir, 'predictions.csv')
+    js      = os.path.join(output_dir, 'params.json')
 
     dump    = np.c_[outputs['identifiers'], np.array([target, predict]).T]
     headers = ['identifier', 'target', 'predict']
 
     if probs:
-        for i, label in enumerate(dataloader.encoder):
+        for i, label in enumerate(dataloader._encoder):
             dump = np.c_[dump, probs[0][:,i].astype(str)]
             headers.append(label)
 
@@ -95,11 +87,7 @@ def core_train(path, model, data_config, model_config, train, test, K, order, or
     with Writing(js, inline = True):
         with open(js, 'w') as f:
             f.write(json.dumps(params, indent = 4))
-        
-    with Writing(fs, inline = True):
-        with open(fs, 'w') as f:
-            print(json.dumps(dict(feature_selection = order, key = order_key, ascending = ascending), indent = 4), file = f)
 
-    create_log('train', path)
+    create_log('train', output_dir)
 
     msg(f'executed "{command}"')

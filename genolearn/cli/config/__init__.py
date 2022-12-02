@@ -12,7 +12,6 @@
 
 from   genolearn.cli.config.model import model
 
-from   genolearn.core.data        import core_train_test_split
 import genolearn.core.config
 
 import click
@@ -43,30 +42,12 @@ def create():
         preprocess dir           : output preprocess directory
         data dir                 : data directory containing metadata and genome sequence data
         metadata file            : metadata file expected to be in a standard csv format
-        identifier               : column within metadata denoting the unique identifiers
-        target                   : column within metadata denoting the metadata target of interest
-        group                    : column within metadata denoting how to later split the data into train / test
-        feature selection method : method to use to reduce the dimensionality of the dataset
     """
-    name = click.prompt(f"{'config name':33s}")
-    preprocess_dir = click.prompt(f"{'preprocess-dir':33}", type = click.Path())
-    data_dir = click.prompt(f"{'data-dir':33s}", type = click.Path())
-    meta = click.prompt(f"{'metadata file ':33s}", type = click.Choice(os.listdir(data_dir)), show_choices = False)
-    with open(os.path.join(data_dir, meta)) as f:
-        columns = f.readline().strip().split(',')
-    identifier = click.prompt(f"{'identifier column in metadata':33s}", type = click.Choice(columns), show_choices = False)
-    columns.pop(columns.index(identifier))
-    target = click.prompt(f"{'target column in metadata':33s}", type = click.Choice(columns), show_choices = False)
-    columns.pop(columns.index(target))
-    columns.append('auto')
-    group = click.prompt(f"{'group column in meta data':26s}", default = 'auto', type = click.Choice(columns), show_choices = False)
-    feature_selection = click.prompt(f"{'feature-selection method':24s}", default = 'fisher')
-    if group == 'auto':
-        group = 'train_test'
-        genolearn.core.config.create(name, preprocess_dir, data_dir, meta, identifier, target, group, feature_selection)
-        core_train_test_split(os.path.join(data_dir, meta), 0.75, None)
-    else:
-        genolearn.core.config.create(name, preprocess_dir, data_dir, meta, identifier, target, group, feature_selection)
+    name           = click.prompt(f"{'config name':14s}")
+    preprocess_dir = click.prompt(f"{'preprocess_dir':14s}", type = click.Path())
+    data_dir       = click.prompt(f"{'data_dir':14s}", type = click.Path())
+    meta           = click.prompt(f"{'metadata file':14s}", type = click.Choice(os.listdir(data_dir)), show_choices = False)
+    genolearn.core.config.create(name, preprocess_dir, data_dir, meta)
     genolearn.core.config.activate(name)
 
 @config.command()

@@ -22,19 +22,8 @@ def get_active(**kwargs):
         kwargs.update(json.loads(f.read()))
         return kwargs
 
-def create(name, preprocess_dir, data_dir, meta, identifier, target, group, feature_selection):
-    config = locals().copy()
-    name   = config.pop('name')
-    for key in ['data-dir', 'preprocess-dir']:
-        config[key] = os.path.abspath(config.pop(key.replace('-', '_')))
-    with open(f'{config["data-dir"]}/{meta}') as f:
-        headers = f.readline().strip().split(',')
-    for key in ['identifier', 'target', 'group']:
-        if config[key] is not None:
-            if config[key] not in headers and config[key] != 'train_test':
-                return print(f'"{config[key]}" not a valid header in \"{config["data-dir"]}/{config["meta"]}\"')
-    config = {key : config[key] for key in sorted(config)}
-    config = json.dumps(config, indent = 4)
+def create(name, preprocess_dir, data_dir, meta):
+    config = json.dumps(dict(data_dir = data_dir, preprocess_dir = preprocess_dir, meta = meta), indent = 4)
     with open(f'{config_path}/{name}', 'w') as file:
         print(config, file = file, end = '')
     print(f'"{name}" config created in {config_path}:\n{config}')
@@ -91,6 +80,7 @@ def remove(name):
 
 
 def model(name, string):
+
     # convert to dictionary like string
     string = '{' + re.sub(r'=| = | =|= ', ':', string) + '}'
     string = re.sub(' ', ', ', string)
@@ -111,6 +101,9 @@ def model(name, string):
     # convert string like dictionary to python dictionary
     config = json.loads(string)
 
+    path   = os.path.join(get_active()['preprocess_dir'], 'model')
+    os.makedirs(path, exist_ok = True)
+
     # write to file
-    with open(name, 'w') as file:
+    with open(os.path.join(path, name), 'w') as file:
         print(json.dumps(config, indent = 4), file = file)

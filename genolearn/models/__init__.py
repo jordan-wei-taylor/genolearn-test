@@ -37,20 +37,20 @@ def load(path):
         return joblib.load(path)
     raise Exception(f'"{full_path}" does not exist!')
 
-def grid_predictions(dataloader, train, test, Model, K, order = None, common_kwargs = {}, min_count = 0, target_subset = None, metric = 'recall', mean_func = 'weighted_mean', **kwargs):
+def grid_predictions(dataloader, Model, selection, num_features, common_kwargs = {}, min_count = 0, target_subset = None, metric = 'recall', mean_func = 'weighted_mean', **kwargs):
 
-    values  = [K] + list(kwargs.values())
+    values  = [num_features] + list(kwargs.values())
     params  = list(product(*values))
-    names   = ['k'] + list(kwargs)
-    C       = [len(K)] + [len(values) for values in kwargs.values()]
+    names   = ['num_features'] + list(kwargs)
+    C       = [len(num_features)] + [len(values) for values in kwargs.values()]
     M       = len(C)
     V       = [None] * len(names)
     
     with Waiting('loading', 'loaded', 'train / test data', inline = True):
-        X_train, Y_train, X_test, Y_test = dataloader.load_train_test(train, test, features = order[:max(K)], min_count = min_count, target_subset = target_subset)
+        X_train, Y_train, X_test, Y_test = dataloader.load_train_test(features = selection[:max(num_features)], min_count = min_count, target_subset = target_subset)
 
     keys    = ['predict', 'predict_proba', 'predict_log_proba']
-    outputs = {'target' : dataloader.decode(Y_test), 'labels' : list(dataloader.encoder), 'time' : [], 'K' : K}
+    outputs = {'target' : dataloader.decode(Y_test), 'labels' : list(dataloader._encoder), 'time' : [], 'num_features' : num_features}
     for key in keys:
         if hasattr(Model, key):
             outputs[key] = []
@@ -89,7 +89,7 @@ def grid_predictions(dataloader, train, test, Model, K, order = None, common_kwa
 
         score = Metrics(Y_test, hat, metric)(func = mean_func)
         if score > best[2]:
-            best_kwargs = {**common_kwargs, **dict(zip(names[1:], V[1:])), 'k' : param[0]}
+            best_kwargs = {**common_kwargs, **dict(zip(names[1:], V[1:])), 'num_features' : param[0]}
             best        = (model, k, score)
 
         monitor_RAM()
@@ -100,12 +100,12 @@ def grid_predictions(dataloader, train, test, Model, K, order = None, common_kwa
     if hasattr(Model, 'predict_proba'):
         best              += (outputs['predict_proba'][k],)
 
-    outputs['identifiers'] = dataloader.test_identifiers
+    outputs['identifiers'] = dataloader.identifiers_test
     outputs['predict']     = dataloader.decode(np.array(outputs['predict']).reshape(*C, -1))
     
     for key in keys[1:]:
         if hasattr(Model, key):
-            outputs[key]   = np.array(outputs[key]).reshape(*C, -1, len(dataloader.encoder))
+            outputs[key]   = np.array(outputs[key]).reshape(*C, -1, len(dataloader._encoder))
 
     outputs['time']        = np.array(outputs['time']).reshape(*C, 2)
         

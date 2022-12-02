@@ -2,7 +2,7 @@ from   genolearn.logger import msg
 
 import numpy as np
 
-def base_feature_selection(dataloader, init, inner_loop, outer_loop, values, force_dense = False, force_sparse = False, aggregate = False):
+def base_feature_selection(dataloader, init, loop, post, force_dense = False, force_sparse = False):
     """
     base feature selection function
 
@@ -19,45 +19,19 @@ def base_feature_selection(dataloader, init, inner_loop, outer_loop, values, for
         
         outer_loop : str
             Outer loop function to be executed for each value in ``values``.
-        
-        values : list, *default=[]*
-            Set of values to use when looping over the generator method of the ``DataLoader`` object.
 
         force_dense : bool, *default=False*
             Identify if computations should be forced to dense computations.
 
         force_dense : bool, *default=False*
             Identify if computations should be forced to sparse computations.
-
-        aggregate : bool, *default=False*
-            Performs a single outer loop instead of incremental loop using the values list.
-        
-    Notes
-    -----
-
-    If it is intended to execute the ``inner_loop`` function on all examplars and the ``outer_loop`` function once at the end, ``values`` should be set such that it evaluates to ``False``.
     """
-    ret          = {}
     args, kwargs = init(dataloader)
-    if values:
-        if aggregate:
-            values = dataloader.meta[dataloader.identifier][np.isin(dataloader.meta[dataloader.group], values)]
-            for i, (x, label) in enumerate(dataloader.generator(*values, force_dense = force_dense, force_sparse = force_sparse), 1):
-                inner_loop(ret, i, x, label, 'all', *args, **kwargs)
-            outer_loop(ret, i, 'all', *args, **kwargs)
-        else:
-            for value in values:
-                for i, (x, label) in enumerate(dataloader.generator(value, force_dense = force_dense, force_sparse = force_sparse), 1):
-                    inner_loop(ret, i, x, label, value, *args, **kwargs)
-                outer_loop(ret, i, value, *args, **kwargs)
-    else:
-        values = dataloader.meta[dataloader.identifier]
-        for i, (x, label) in enumerate(dataloader.generator(*values, force_dense = force_dense, force_sparse = force_sparse), 1):
-            inner_loop(ret, i, x, label, 'all', *args, **kwargs)
-        outer_loop(ret, i, 'all', *args, **kwargs)
-    return ret
+    for i, (x, label) in enumerate(dataloader.generator('Train', force_dense = force_dense, force_sparse = force_sparse), 1):
+        loop(i, x, label, 'Train', *args, **kwargs)
+    return post(i, 'Train', *args, **kwargs)
 
-def core_feature_selection(name, preprocess_dir, meta_path, identifier, target, group, values, method, aggregate, log, sparse):
+def feature_selection(name, preprocess_dir, meta, method, log):
 
     from   genolearn.logger  import msg, Writing
     from   genolearn.dataloader import DataLoader
@@ -82,7 +56,7 @@ def core_feature_selection(name, preprocess_dir, meta_path, identifier, target, 
     # parser.add_argument('-log', default = None, help = 'log file name')
     # parser.add_argument('--sparse', default = False, action = 'store_true', help = 'if sparse loading of data is preferred')
 
-    dataloader = DataLoader(preprocess_dir, meta_path, identifier, target, group, sparse)
+    dataloader = DataLoader(preprocess_dir, meta)
     
     os.makedirs(os.path.join(preprocess_dir, 'feature-selection'), exist_ok = True)
 
@@ -100,16 +74,16 @@ def core_feature_selection(name, preprocess_dir, meta_path, identifier, target, 
     variables    = dir(module)
     save_path    = f'{preprocess_dir}/feature-selection/{name}'
     
-    for name in ['init', 'inner_loop', 'outer_loop']:
+    for name in ['init', 'loop', 'post']:
         assert name in variables
         
     force_sparse = module.force_sparse if 'force_sparse' in variables else False
     force_dense  = module.force_dense  if 'force_dense'  in variables else False
 
-    scores       = base_feature_selection(dataloader, module.init, module.inner_loop, module.outer_loop, values, force_dense, force_sparse, aggregate)
+    scores       = base_feature_selection(dataloader, module.init, module.loop, module.post, force_dense, force_sparse)
 
     with Writing(save_path, inline = True):
-        np.savez_compressed(save_path, **scores)
+        np.savez_compressed(save_path, scores)
 
     utils.create_log(method if log is None else log, f'{preprocess_dir}/feature-selection')
 

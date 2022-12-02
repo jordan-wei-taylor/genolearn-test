@@ -7,7 +7,7 @@ def init(dataloader):
     Initialises statistics for the Fisher Score computation for inner and outer loop functions.
     """
     # encoding from class label to integer
-    encode = {c : i for i, c in enumerate(set(dataloader.meta[dataloader.target]))}
+    encode = {c : i for i, c in enumerate(set(dataloader.meta['targets']))}
 
     # class label count
     n  = np.zeros(dataloader.c)
@@ -26,14 +26,14 @@ def init(dataloader):
 
     return args, kwargs
 
-def inner_loop(ret, i, x, label, value, *args, **kwargs):
+def loop(i, x, label, value, *args, **kwargs):
     """
     Incrementally updates count, global, and by class label statistics
     """
     msg(f'{value} : {i}', inline = True)
 
     encode, n, sg, s1, s2 = args
-    
+        
     y      = encode[label]
 
     # increase count of label
@@ -48,7 +48,7 @@ def inner_loop(ret, i, x, label, value, *args, **kwargs):
     # increase class label sum of squares
     s2[y] += np.square(x)
 
-def outer_loop(ret, i, value, *args, **kwargs):
+def post(i, value, *args, **kwargs):
     """
     Computes the Fisher Score using statistics stored in ``*args``.
     """
@@ -81,7 +81,7 @@ def outer_loop(ret, i, value, *args, **kwargs):
 
     msg(f'{value} : {i} (completed)')
 
-    ret[value] = S
+    return S
 
 # computations above require each "x" to be a numpy array and not a scipy sparse array
 force_dense = True
