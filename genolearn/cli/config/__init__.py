@@ -44,8 +44,12 @@ def create():
         metadata file            : metadata file expected to be in a standard csv format
     """
     name           = click.prompt(f"{'config name':14s}")
-    preprocess_dir = click.prompt(f"{'preprocess_dir':14s}", type = click.Path())
-    data_dir       = click.prompt(f"{'data_dir':14s}", type = click.Path())
+    preprocess_dir = os.path.abspath(click.prompt(f"{'preprocess_dir':14s}", type = click.Path()))
+    data_dir       = os.path.abspath(click.prompt(f"{'data_dir':14s}", type = click.Path()))
+
+    if not os.path.exists(data_dir):
+        return print(f'"{data_dir}" not a valid path!')
+
     meta           = click.prompt(f"{'metadata file':14s}", type = click.Choice(os.listdir(data_dir)), show_choices = False)
     genolearn.core.config.create(name, preprocess_dir, data_dir, meta)
     genolearn.core.config.activate(name)
