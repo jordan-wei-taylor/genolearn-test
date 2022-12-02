@@ -14,7 +14,7 @@ setup(
     author_email     = "jt2006@bath.ac.uk",
     description      = "A machine learning toolkit for genome sequence data",
     long_description = read('README.md'),
-    license          = read('LICENSE'),
+    license          = 'BSD-3-Clause',
     package          = ['genolearn'],
     url              = url,
     project_urls     = {"Bug Tracker": f"{url}/issues"},
