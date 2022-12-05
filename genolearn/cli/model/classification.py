@@ -3,7 +3,7 @@ classification doc
 
 """
 
-from   genolearn.utils import prompt
+from   genolearn.utils import prompt, append
 import click
 import json
 
@@ -16,7 +16,7 @@ def classification():
     
 INFO = dict(logistic_regression = \
                 dict(model = 'LogisticRegression',
-                     config_name = dict(type = click.STRING, default = 'logistic-regression.config'),
+                     config_name = dict(type = click.STRING, default = 'logistic-regression'),
                      penalty = dict(type = click.Choice(['l1', 'l2', 'elasticnet', 'none']), default = 'l2'),
                      dual = dict(type = click.BOOL, default = False),
                      tol = dict(type = click.FloatRange(1e-8), default = 1e-4),
@@ -31,7 +31,7 @@ INFO = dict(logistic_regression = \
                      l1_ratio = dict(type = click.FloatRange(0), default = 1.)),
             random_forest = \
                 dict(model = 'RandomForestClassifier',
-                     config_name = dict(type = click.STRING, default = 'random-forest.config'),
+                     config_name = dict(type = click.STRING, default = 'random-forest'),
                      n_estimators = dict(type = click.IntRange(1), default = 100),
                      criterion = dict(type = click.Choice(['gini', 'entropy', 'log_loss']), default = 'gini'),
                      max_depth = dict(type = click.IntRange(1), default = None),
@@ -49,19 +49,19 @@ INFO = dict(logistic_regression = \
         )
 
 def base(name):
-    from   genolearn.core.config import get_active
+    from   genolearn import wd
     import os
 
     info        = INFO[name]
     params      = {'model' : info.pop('model')}
     params.update(prompt(info))
     config_name = params.pop('config_name')
-    active      = get_active()
-    path        = os.path.join(active['preprocess_dir'], 'model')
+    path        = os.path.join(wd, 'model')
     os.makedirs(path, exist_ok = True)
     with open(os.path.join(path, config_name), 'w') as file:
         print(json.dumps(params, indent = 4), file = file)
     print(f'generated "{config_name}" in {path}')
+    append(f'model classification {name.replace("_", "-")} ({config_name})')
 
 @classification.command(name = 'logistic-regression')
 def logistic_regression():

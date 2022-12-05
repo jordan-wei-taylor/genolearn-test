@@ -8,41 +8,36 @@ def feature_selection():
     \b
     prompted information
         name      : output file name
-        group_by  : group-by column
-        values    : group-by values which are referred to as `keys` in the training stage
+        meta      : preprocessed metadata file
         method    : feature selection method
-        aggregate : experimental (leave as False)
-        sparse    : loads the data in sparse format to reduce RAM usage if set to True
     """
-    from   genolearn.core.config import get_active
+    from   genolearn import get_active, wd
     from   genolearn.core.feature_selection import feature_selection
-    from   genolearn.utils import prompt
+    from   genolearn.utils import prompt, append
 
     import os
 
     active = get_active()
     if active is not None:
-        if not os.path.exists(active["preprocess_dir"]):
+        if not os.path.exists(wd):
             return print('execute "genolearn preprocess sequence" first')
-        if 'meta' not in os.listdir(active['preprocess_dir']):
+        if 'meta' not in os.listdir(wd):
             return print('execute "genolearn preprocess meta" first')
-    path = os.path.join(active['preprocess_dir'], 'meta')
-    info = dict(name   = dict(default = 'fisher-scores.npz', type = click.STRING),
+    path = os.path.join(wd, 'meta')
+    info = dict(name   = dict(default = 'fisher', type = click.STRING),
                 meta   = dict(type = click.Choice(os.listdir(path))),
                 method = dict(default = 'fisher', type = click.STRING))
 
     params = prompt(info)
 
-    # ensure .npz ending
-    if not params['name'].endswith('.npz'):
-        params['name'] = f'{params["name"]}.npz'
 
-    params['log'] = params['name'].replace('.npz', '.log')
+    params['log'] = f"{params['name']}.log"
 
     from   genolearn.logger import print_dict
 
     print_dict('executing "feature-selection" with parameters:', params)
 
-    params['preprocess_dir'] = active['preprocess_dir']
+    params['working_dir'] = wd
 
     feature_selection(**params)
+    append(f'feature-selection ({params["name"]})')

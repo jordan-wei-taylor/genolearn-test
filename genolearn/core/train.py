@@ -1,11 +1,9 @@
 
-def train(output_dir, meta, model, model_config, feature_selection, num_features, ascending, min_count, target_subset, metric, aggregate_func, overwrite):
-    params = locals().copy()
+def train(output_dir, meta, model_config, feature_selection, num_features, min_count, target_subset, metric, aggregate_func):
 
     import os
-    
-    output_dir = os.path.abspath(output_dir)
-    
+    import json
+        
 
     command = 'genolearn train'
 
@@ -14,22 +12,15 @@ def train(output_dir, meta, model, model_config, feature_selection, num_features
     from genolearn.models                import grid_predictions
     from genolearn.dataloader            import DataLoader
     from genolearn.logger                import msg, Writing
-    from genolearn.core.config           import get_active
+    from genolearn           import get_active, wd
 
     import warnings
-    import shutil
     import numpy as np
     import os
     import json
     import pickle
 
     active = get_active()
-
-    if os.path.exists(output_dir):
-        if overwrite:
-            shutil.rmtree(output_dir)
-        else:
-            return print(f'"{output_dir}" already exists! Add the "--overwrite" flag to overwrite.')
 
     os.makedirs(output_dir)
 
@@ -45,11 +36,15 @@ def train(output_dir, meta, model, model_config, feature_selection, num_features
 
     # print_dict('executing "train.py" with parameters', params)
 
+    with open(os.path.join(wd, 'model', model_config)) as file:
+        model_config = json.load(file)
+        model        = model_config.pop('model')
+
     kwargs     = {key : val for key, val in model_config.items() if isinstance(val, list)}
     common     = {key : val for key, val in model_config.items() if key not in kwargs}
 
-    dataloader = DataLoader(active['preprocess_dir'], meta)
-    selection  = dataloader.load_feature_selection(feature_selection).argsort()[::-1 if ascending else 1]
+    dataloader = DataLoader(wd, meta)
+    selection  = dataloader.load_feature_selection(feature_selection).argsort()
 
     Model   = get_model(model)
     
@@ -63,6 +58,7 @@ def train(output_dir, meta, model, model_config, feature_selection, num_features
     pkl     = os.path.join(output_dir, 'model.pickle')
     csv     = os.path.join(output_dir, 'predictions.csv')
     js      = os.path.join(output_dir, 'params.json')
+    enc     = os.path.join(output_dir, 'encoding.json')
 
     dump    = np.c_[outputs['identifiers'], np.array([target, predict]).T]
     headers = ['identifier', 'target', 'predict']
@@ -70,7 +66,7 @@ def train(output_dir, meta, model, model_config, feature_selection, num_features
     if probs:
         for i, label in enumerate(dataloader._encoder):
             dump = np.c_[dump, probs[0][:,i].astype(str)]
-            headers.append(label)
+            headers.append(f'P({label})')
 
     dump = ','.join(headers) + '\n' + '\n'.join(','.join(row) for row in dump)
 
@@ -87,6 +83,9 @@ def train(output_dir, meta, model, model_config, feature_selection, num_features
     with Writing(js, inline = True):
         with open(js, 'w') as f:
             f.write(json.dumps(params, indent = 4))
+
+    with open(enc, 'w') as f:
+        f.write(json.dumps(dataloader._encoder, indent = 4))
 
     create_log('train', output_dir)
 

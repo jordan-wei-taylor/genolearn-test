@@ -81,7 +81,7 @@ def post(i, value, *args, **kwargs):
 
     msg(f'{value} : {i} (completed)')
 
-    return S
+    return -S # return negative scores such that argsort returns largest to smallest
 
 # computations above require each "x" to be a numpy array and not a scipy sparse array
 force_dense = True

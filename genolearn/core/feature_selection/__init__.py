@@ -31,7 +31,7 @@ def base_feature_selection(dataloader, init, loop, post, force_dense = False, fo
         loop(i, x, label, 'Train', *args, **kwargs)
     return post(i, 'Train', *args, **kwargs)
 
-def feature_selection(name, preprocess_dir, meta, method, log):
+def feature_selection(name, working_dir, meta, method, log):
 
     from   genolearn.logger  import msg, Writing
     from   genolearn.dataloader import DataLoader
@@ -56,9 +56,9 @@ def feature_selection(name, preprocess_dir, meta, method, log):
     # parser.add_argument('-log', default = None, help = 'log file name')
     # parser.add_argument('--sparse', default = False, action = 'store_true', help = 'if sparse loading of data is preferred')
 
-    dataloader = DataLoader(preprocess_dir, meta)
+    dataloader = DataLoader(working_dir, meta)
     
-    os.makedirs(os.path.join(preprocess_dir, 'feature-selection'), exist_ok = True)
+    os.makedirs(os.path.join(working_dir, 'feature-selection'), exist_ok = True)
 
     if f'{method}' == 'fisher':
 
@@ -72,7 +72,7 @@ def feature_selection(name, preprocess_dir, meta, method, log):
         raise Exception(f'"{method}.py" not in current directory!')
 
     variables    = dir(module)
-    save_path    = f'{preprocess_dir}/feature-selection/{name}'
+    save_path    = os.path.join(working_dir, 'feature-selection', name)
     
     for name in ['init', 'loop', 'post']:
         assert name in variables
@@ -84,7 +84,8 @@ def feature_selection(name, preprocess_dir, meta, method, log):
 
     with Writing(save_path, inline = True):
         np.savez_compressed(save_path, scores)
+        os.rename(f'{save_path}.npz', save_path)
 
-    utils.create_log(method if log is None else log, f'{preprocess_dir}/feature-selection')
+    utils.create_log(method if log is None else log, os.path.join(working_dir, 'feature-selection'))
 
     msg(f'executed "genolearn feature-selection"')

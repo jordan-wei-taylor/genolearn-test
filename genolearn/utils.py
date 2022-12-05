@@ -155,6 +155,9 @@ def prompt(params):
     
     config = {}
     for i, (key, info) in enumerate(params.items()):
+        if isinstance(info['type'], click.Choice) and len(info['type'].choices) == 1:
+            config[key] = info['type'].choices[0]
+            continue
         space   = hi - len(prompts[i])
         default = _default(info)
         flag    = 'default' in info or default
@@ -162,6 +165,13 @@ def prompt(params):
         value   = _prompt(prompt, info['type'], default, flag, info.get('multiple', False))
         config[key] = value
     return config
+
+def append(command):
+    from genolearn import wd
+    if not os.path.exists(wd):
+        os.makedirs(wd)
+    with open(os.path.join(wd, '.history'), 'a') as f:
+        f.write(command + '\n')
 
 START    = time()
 RAMSTART = get_process_memory()

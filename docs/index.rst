@@ -113,13 +113,18 @@ Stable Install
     :titlesonly:
     :caption: Usage
 
-    config <usage/config/index>
     data <usage/data>
-    preprocess <usage/preprocess>
-    feature-selection <usage/feature-selection>
-    train <usage/train>
-    feature-importance <usage/feature-importance>
+    dir <usage/dir>
     evaluate <usage/evaluate>
+    feature-importance <usage/feature-importance>
+    feature-selection <usage/feature-selection>
+    model <usage/model/index>
+    next <usage/next>
+    preprocess <usage/preprocess>
+    print <usage/print>
+    train <usage/train>
+    
+    
 
 .. .. toctree::
 ..     :hidden:

@@ -14,3 +14,6 @@ dist
 
 # conda build command
 conda-build.sh
+
+# working directory
+wd

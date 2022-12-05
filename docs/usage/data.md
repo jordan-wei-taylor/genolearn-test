@@ -18,35 +18,15 @@ Analyse
 
 .. code-block:: bash
 
-    genolearn data analyse [OPTIONS]
-
-
-.. rubric:: Options
-.. code-block:: bash
-
-    --group-by GROUP  : perform analysis by group-by GROUP column values
-    --min-count VALUE : minimum count for suggested target subset
-    --test TEST       : identifiers to omit when computing statistics
-
-
-.. rubric:: Example Usage
-.. code-block:: bash
-
-    # summary global statistics
     genolearn data analyse
 
-    # summary statistics by group (group should be a colmn in metadata)
-    genolearn data analyse --group-by GROUP
 
-    # additional suggestion for which target values should be taken forward for modelling
-    # (no list is generated if all target values are valid for modelling purposes)
-    genolearn data analyse --group-by GROUP --test TEST
+.. rubric:: Prompted Information
+.. code-block:: text
 
-
-.. rubric:: Default Example Usage
-.. code-block:: bash
-
-    genolearn data analyse -group-by train_test --test test
+    meta               : preprocessed metadata filename
+    min count     [10] : minimum count for suggested target subset
+    proportion [False] : print the proportions instead of counts
 
 
 Head
@@ -55,6 +35,12 @@ Head
 .. code-block:: bash
 
     genolearn data head [NUM]
+
+
+.. rubric:: Prompted Information
+.. code-block:: text
+
+    meta : preprocessed metadata filename (autofilled if only one file to choose from)
 
 
 Prints the first ``NUM`` rows of metadata.
@@ -73,6 +59,11 @@ Tail
     genolearn data tail [NUM]
 
 
+.. rubric:: Prompted Information
+.. code-block:: text
+
+    meta : preprocessed metadata filename (autofilled if only one file to choose from)
+
 Prints the last ``NUM`` rows of metadata.
 
 .. rubric:: Arguments
@@ -81,16 +72,23 @@ Prints the last ``NUM`` rows of metadata.
     NUM : number of rows to print of metadata
 
 
-Train Test Split
-----------------
+Sample
+----
 
-.. code-block:: bash
+.. code-block:: tail
 
-    genolearn data train-test-split [OPTIONS]
+    genolearn data sample [NUM]
 
 
-.. rubric:: Options
+.. rubric:: Prompted Information
 .. code-block:: text
 
-    --ptrain PTRAIN      : propoertion of data to be assigned "train"
-    --random-state STATE : random seed for reproducibility
+    meta : preprocessed metadata filename (autofilled if only one file to choose from)
+
+
+Prints the ``NUM`` randomly sampled rows of metadata.
+
+.. rubric:: Arguments
+.. code-block:: text
+
+    NUM : number of rows to print of metadata

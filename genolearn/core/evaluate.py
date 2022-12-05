@@ -1,4 +1,4 @@
-def core_evaluate(model, data_config, feature_selection, ascending, key, values, output):
+def evaluate(model, data_config, feature_selection, values, encoder, num_features, output):
 
     from   genolearn.logger import msg
 
@@ -10,19 +10,20 @@ def core_evaluate(model, data_config, feature_selection, ascending, key, values,
     model       = joblib.load(model)
     dataloader  = DataLoader(**data_config)
 
-    if feature_selection and key:
-        features = dataloader.load_feature_selection(feature_selection).rank(ascending = ascending)[key]
-    else:
-        features = None
+    features = dataloader.load_feature_selection(feature_selection).argsort()[:num_features]
 
     X   = dataloader.load_X(*values, features = features)
 
-    df  = pd.DataFrame(index = dataloader.identifiers)
+    dataloader._encoder = encoder
+
+    df  = pd.DataFrame(index = dataloader._check_identifiers(values))
+    df.index.name = 'identifier'
+
     df['hat'] = dataloader.decode(model.predict(X))
     
     if hasattr(model, 'predict_proba'):
         prob = model.predict_proba(X)
-        for i, name in enumerate(dataloader.encoder):
+        for i, name in enumerate(encoder):
             df[f'P({name})'] = prob[:,i]
     
     df.to_csv(output)

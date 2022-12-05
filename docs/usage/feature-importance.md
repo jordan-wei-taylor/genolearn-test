@@ -6,11 +6,10 @@ GenoLearn Feature Importance
     genolearn feature-importance
 
 
-Creates a directory containing an ``npz`` file and a feature rank ``csv`` file with the feature importance for a trained model.
+Given a trained model, inspect which features were important.
 
 .. rubric:: Prompted Information
 .. code-block:: text
 
-    train_dir : path to output directory of ``genolearn train``
-    output    : output directory
+    train_dir : directory of a subdirectory within <working-dir>/train
 

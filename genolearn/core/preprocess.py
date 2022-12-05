@@ -1,3 +1,5 @@
+from   genolearn import wd
+
 import shutil
 import numpy as np
 import os
@@ -86,6 +88,14 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
     with _open(data) as gz:
         
         if os.path.exists(preprocess_dir):
+            for thing in os.listdir(preprocess_dir):
+                if thing == '.history': continue
+                path = os.path.join(preprocess_dir, thing)
+                if os.path.isdir(path):
+                    rmtree(path)
+                else:
+                    os.remove(path)
+                    
             rmtree(preprocess_dir)
 
         os.mkdir(preprocess_dir)
@@ -95,7 +105,6 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
             shutil.rmtree('temp')
 
         os.mkdir('temp')
-        os.mkdir('feature-selection')
 
         files = {}
 
@@ -383,23 +392,22 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
 
 def preprocess_meta(output, meta_path, identifier_column, target_column, group_column, train_values, test_values, ptrain):
 
-    from   genolearn.core.config import get_active
+    from   genolearn import get_active
 
     import pandas as pd
     import json
 
-    active  = get_active()
+    active   = get_active()
 
-    file_dir = os.path.join(active['preprocess_dir'], 'sparse' if 'sparse' in os.listdir(active['preprocess_dir']) else 'dense')
-    files   = [file.replace('.npz', '') for file in os.listdir(file_dir)]
-    meta_df = pd.read_csv(meta_path).applymap(str)
+    pdir     = os.path.join(wd, 'preprocess')
+    file_dir = os.path.join(pdir, 'sparse' if 'sparse' in os.listdir(pdir) else 'dense')
+    files    = [file.replace('.npz', '') for file in os.listdir(file_dir)]
+    meta_df  = pd.read_csv(meta_path).applymap(str)
     meta_df[identifier_column] = meta_df[identifier_column].apply(clean_sample)
     
-    valid   = set(files)
+    valid    = set(files)
 
-    meta_df = meta_df.loc[meta_df[identifier_column].isin(valid)]
-
-    targets = sorted(set(meta_df[target_column]))
+    meta_df  = meta_df.loc[meta_df[identifier_column].isin(valid)]
 
     if group_column == 'None':
         group_column                      = 'train_test'
@@ -412,9 +420,7 @@ def preprocess_meta(output, meta_path, identifier_column, target_column, group_c
         
     groups    = sorted(set(meta_df[group_column]))
 
-    meta_json = {}
-    for key, column in zip(['identifiers', 'targets'], [identifier_column, target_column]):
-        meta_json[key] = list(meta_df[column])
+    meta_json = {'identifiers' : list(meta_df[identifier_column]), 'targets' : sorted(set(meta_df[target_column]))}
 
     meta_json['search'] = {}
     meta_json['group']  = {}
@@ -423,19 +429,6 @@ def preprocess_meta(output, meta_path, identifier_column, target_column, group_c
 
     for group in groups:
         meta_json['group'][group] = list(meta_df.loc[meta_df[group_column] == group, identifier_column])
-
-    meta_json['counts']     = {}
-    for group in meta_json['group']:
-        meta_json['counts'][group] = {target : 0 for target in targets}
-        for identifier in meta_json['group'][group]:
-            meta_json['counts'][group][meta_json['search'][identifier]] += 1
-
-    meta_json['proportion'] = {}
-    for group in meta_json['counts']:
-        meta_json['proportion'][group] = {}
-        total = sum(meta_json['counts'][group].values())
-        for target in targets:
-            meta_json['proportion'][group][target] = meta_json['counts'][group][target] / total
 
     meta_json['Train'] = []
     meta_json['Test' ] = []
@@ -446,7 +439,7 @@ def preprocess_meta(output, meta_path, identifier_column, target_column, group_c
         elif group in test_values:
             meta_json['Test'].append(group)
     
-    path = os.path.join(active['preprocess_dir'], 'meta')
+    path = os.path.join(wd, 'meta')
     os.makedirs(path, exist_ok = True)
 
     with open(os.path.join(path, output), 'w') as file:

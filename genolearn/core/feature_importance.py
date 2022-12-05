@@ -64,11 +64,11 @@ def _ensemble_score(model):
 def _ensemble_rank(model, **kwargs):
     return _ensemble_score(model).argsort()[::-1]
 
-def feature_importance(meta, feature_selection, ascending, model, output):
+def feature_importance(meta, feature_selection, model, output):
 
     from   genolearn.dataloader import DataLoader
     from   genolearn.logger     import Writing, msg
-    from   genolearn.core.config import get_active
+    from   genolearn import get_active, wd
 
     import pickle
 
@@ -76,11 +76,11 @@ def feature_importance(meta, feature_selection, ascending, model, output):
     import numpy  as np
 
     active     = get_active()
-    dataloader = DataLoader(active['preprocess_dir'], meta)
+    dataloader = DataLoader(wd, meta)
 
-    selection  = dataloader.load_feature_selection(feature_selection)
+    selection  = dataloader.load_feature_selection(feature_selection).argsort()
 
-    features   = dataloader.features(selection.argsort()[::1 if ascending else -1])
+    features   = dataloader.features(selection)
 
     with open(model, 'rb') as f:
         model = pickle.load(f)

@@ -1,6 +1,7 @@
 from   genolearn.logger import print_dict
-from   genolearn.core.config import get_active
-from   genolearn.utils import prompt
+from   genolearn import get_active
+from   genolearn.utils import prompt, append
+from   genolearn import wd
 
 import resource
 import click
@@ -50,12 +51,13 @@ def sequence(max_features):
                   n_processes = dict(prompt = 'n-processes', type = click.INT, default = None),
                   sparse = dict(prompt = 'sparse', type = click.BOOL, default = True),
                   dense = dict(prompt = 'dense', type = click.BOOL, default = True),
-                  verbose = dict(prompt = 'verbose', type = click.INT, default = 250000))
+                  verbose = dict(prompt = 'verbose', type = click.INT, default = 250000 if max_features is None else max_features // 10))
     params = prompt(info)
 
     assert params['dense'] or params['sparse'], 'set either / both dense and sparse to True'
 
-    params['data']         = os.path.join(active['data_dir'], params['data'])
+    data                   = params['data']
+    params['data']         = os.path.join(active['data_dir'], data)
     params['max_features'] = -1 if max_features is None else max_features
 
     from multiprocessing import cpu_count
@@ -69,7 +71,8 @@ def sequence(max_features):
 
     from   genolearn.core.preprocess import preprocess
 
-    preprocess(active['preprocess_dir'], **params)
+    preprocess(os.path.join(wd, 'preprocess'), **params)
+    append(f'preprocess sequence ({data})')
 
 @preprocess.command()
 @click.option('--max-features', default = None, type = click.IntRange(-1))
@@ -102,10 +105,11 @@ def combine(max_features):
     info = dict(data        = dict(prompt = 'data (gz) file', type = choice),
                 batch_size  = dict(type = click.INT, default = None),
                 n_processes = dict(type = click.INT, default = None),
-                verbose     = dict(type = click.INT, default = 250000))
+                verbose     = dict(type = click.INT, default = 250000 if max_features is None else max_features // 10))
     params = prompt(info)
     
-    params['data'] = os.path.join(active['data_dir'], params['data'])
+    data           = params['data']
+    params['data'] = os.path.join(active['data_dir'], data)
     params['max_features'] = -1 if max_features is None else max_features
 
     from multiprocessing import cpu_count
@@ -121,7 +125,8 @@ def combine(max_features):
 
     from   genolearn.core.preprocess import combine
 
-    combine(active['preprocess_dir'], **params)
+    combine(os.path.join(wd, 'preprocess'), **params)
+    append(f'preprocess combine ({data})')
 
 @preprocess.command()
 def meta():
@@ -138,13 +143,13 @@ def meta():
         test_group_values  : group values to assign as testing data  [if group  = None]
         proportion train   : proportion of data to assign as train   [if group != None]
     """
-    from genolearn.core.config import get_active
-    from genolearn.utils       import _prompt
+    from genolearn       import get_active
+    from genolearn.utils import _prompt
 
     import pandas as pd
 
     active         = get_active()
-    meta_path      = os.path.join(active['data_dir'], active['meta'])
+    meta_path      = active['meta']
     meta_df        = pd.read_csv(meta_path).applymap(str)
     valid_columns  = set(meta_df.columns)
     
@@ -174,4 +179,6 @@ def meta():
     from genolearn.core.preprocess import preprocess_meta
 
     preprocess_meta(output, meta_path, identifier, target, group, train_values, test_values, ptrain)
+    append(f'preprocess meta ({output})')
+
 

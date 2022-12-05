@@ -45,17 +45,18 @@ class DataLoader():
         meta_file : str
             Preprocessed metadata within ``preprocess_dir``/meta
     """
-    def __init__(self, preprocess_dir, meta_file):
+    def __init__(self, working_dir, meta_file):
 
-        self.dense          = os.path.exists(os.path.join(preprocess_dir, 'dense'))
-        self.preprocess_dir = preprocess_dir
-        self.data_dir       = os.path.join(preprocess_dir, 'dense' if self.dense else 'sparse')
+        self.dense          = os.path.exists(os.path.join(working_dir, 'preprocess', 'dense'))
+        self.working_dir    = working_dir
+        self.preprocess_dir = os.path.join(working_dir, 'preprocess')
+        self.data_dir       = os.path.join(self.preprocess_dir, 'dense' if self.dense else 'sparse')
         
-        with open(os.path.join(preprocess_dir, 'meta', meta_file)) as f:
+        with open(os.path.join(working_dir, 'meta', meta_file)) as f:
             self.meta = json.load(f)
             self.c    = len(set(self.meta['targets']))
 
-        with open(os.path.join(preprocess_dir, 'info.json')) as f:
+        with open(os.path.join(self.preprocess_dir, 'info.json')) as f:
             info = json.load(f)
             self.n, self.m = info['n'], info['m']
 
@@ -192,7 +193,7 @@ class DataLoader():
         return self._features if indices is None else [self._features[i] for i in indices]
 
     def load_feature_selection(self, file):
-        ret, = np.load(os.path.join(self.preprocess_dir, 'feature-selection', file), allow_pickle = True).values()
+        ret, = np.load(os.path.join(self.working_dir, 'feature-selection', file), allow_pickle = True).values()
         return ret
 
     def generator(self, *identifiers, features = None, force_dense = False, force_sparse = False):
