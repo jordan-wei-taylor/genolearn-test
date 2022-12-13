@@ -1,8 +1,8 @@
-from   genolearn.logger import msg
+from   genolearn.logger import msg, Waiting
 
 import numpy as np
 
-def base_feature_selection(dataloader, init, loop, post, force_dense = False, force_sparse = False):
+def base_feature_selection(method, dataloader, init, loop, post, force_dense = False, force_sparse = False):
     """
     base feature selection function
 
@@ -27,17 +27,21 @@ def base_feature_selection(dataloader, init, loop, post, force_dense = False, fo
             Identify if computations should be forced to sparse computations.
     """
     args, kwargs = init(dataloader)
+    n            = sum(map(len, (dataloader.meta['group'][group] for group in dataloader.meta['Train'])))
     for i, (x, label) in enumerate(dataloader.generator('Train', force_dense = force_dense, force_sparse = force_sparse), 1):
+        msg(f'{method} : {i:,d} of {n:,d}', inline = True)
         loop(i, x, label, 'Train', *args, **kwargs)
-    return post(i, 'Train', *args, **kwargs)
+    
+    with Waiting(f'{method} : {i:,d} (computing fisher)', f'{method} : {i:,d} (completed)'):
+        ret = post(i, 'Train', *args, **kwargs)
 
-def feature_selection(name, working_dir, meta, method, log):
+    return ret
+
+def feature_selection(name, meta, method, module, log):
 
     from   genolearn.logger  import msg, Writing
     from   genolearn.dataloader import DataLoader
-    from   genolearn         import utils
-
-    import importlib
+    from   genolearn         import utils, working_directory
 
     import numpy  as np
     import os
@@ -56,36 +60,29 @@ def feature_selection(name, working_dir, meta, method, log):
     # parser.add_argument('-log', default = None, help = 'log file name')
     # parser.add_argument('--sparse', default = False, action = 'store_true', help = 'if sparse loading of data is preferred')
 
-    dataloader = DataLoader(working_dir, meta)
+    dataloader = DataLoader(meta, working_directory)
     
-    os.makedirs(os.path.join(working_dir, 'feature-selection'), exist_ok = True)
+    os.makedirs('feature-selection', exist_ok = True)
 
-    if f'{method}' == 'fisher':
+    variables  = {}
+    with open(os.path.expanduser(module)) as f:
+        exec(f.read(), {}, variables)
 
-        module       = importlib.import_module(f'genolearn.core.feature_selection.fisher')
+    save_path    = os.path.join('feature-selection', name)
+    funcs        = ['init', 'loop', 'post']
+    extra        = ['force_dense', 'force_sparse']
 
-    elif f'{method}.py' in os.listdir():
-
-        module       = importlib.import_module(method)
-
-    else:
-        raise Exception(f'"{method}.py" not in current directory!')
-
-    variables    = dir(module)
-    save_path    = os.path.join(working_dir, 'feature-selection', name)
-    
-    for name in ['init', 'loop', 'post']:
+    for name in funcs:
         assert name in variables
         
-    force_sparse = module.force_sparse if 'force_sparse' in variables else False
-    force_dense  = module.force_dense  if 'force_dense'  in variables else False
+    params       = {func : variables.get(func) for func in funcs + extra}
 
-    scores       = base_feature_selection(dataloader, module.init, module.loop, module.post, force_dense, force_sparse)
+    scores       = base_feature_selection(method, dataloader, **params)
 
     with Writing(save_path, inline = True):
         np.savez_compressed(save_path, scores)
         os.rename(f'{save_path}.npz', save_path)
 
-    utils.create_log(method if log is None else log, os.path.join(working_dir, 'feature-selection'))
+    utils.create_log(method if log is None else log, 'feature-selection')
 
     msg(f'executed "genolearn feature-selection"')

@@ -1,5 +1,3 @@
-from   genolearn import wd
-
 import shutil
 import numpy as np
 import os
@@ -63,10 +61,10 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
 
     try:
         # remove number of files open restriction
-        limit = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], batch_size)
+        limit = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], batch_size + 100)
         resource.setrlimit(resource.RLIMIT_NOFILE, (limit, limit))
     except:
-        msg(f'Attempting to open to many files! Try reducing the number to 128 with\ngenolearn preprocess {data} --batch-size 128')
+        msg(f'Attempting to open to many files! Try reducing the number')
         return 
 
     n_processes    = cpu_count() if n_processes == 'auto' else int(n_processes)
@@ -87,15 +85,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
 
     with _open(data) as gz:
         
-        if os.path.exists(preprocess_dir):
-            for thing in os.listdir(preprocess_dir):
-                if thing == '.history': continue
-                path = os.path.join(preprocess_dir, thing)
-                if os.path.isdir(path):
-                    rmtree(path)
-                else:
-                    os.remove(path)
-                    
+        if os.path.exists(preprocess_dir):                    
             rmtree(preprocess_dir)
 
         os.mkdir(preprocess_dir)
@@ -130,7 +120,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
 
                 for SRR, count in zip(srrs, counts):
                     if SRR not in exceptions:
-                        if SRR not in files and c < batch_size:
+                        if SRR not in files and c <= batch_size:
                             if skip:
                                 skipped = True
                                 continue
@@ -211,7 +201,8 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
         os.rmdir('temp')
         
         utils.create_log('preprocess')
-    
+
+        os.chdir('..')
 
     msg(f'executed "genolearn preprocess"')
 
@@ -246,8 +237,13 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
 
     assert os.path.exists(preprocess_dir)
 
-    limit = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-    resource.setrlimit(resource.RLIMIT_NOFILE, (limit, limit))
+    try:
+        # remove number of files open restriction
+        limit = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], batch_size + 100)
+        resource.setrlimit(resource.RLIMIT_NOFILE, (limit, limit))
+    except:
+        msg(f'Attempting to open to many files! Try reducing the number')
+        return 
 
     with gzip.open(os.path.join(preprocess_dir, 'features.txt.gz')) as gz:
         feature_set = gz.read().decode().split()
@@ -260,7 +256,6 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
 
     first_run  = True
     features   = []
-    exceptions = set()
     C          = 0
     hi         = 0
     unique     = set()
@@ -280,8 +275,8 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
             shutil.rmtree('temp')
         os.mkdir('temp')
         
-        files = {}
-
+        files      = {}
+        exceptions = set([file.replace('.npz', '') for file in os.listdir('dense' if 'dense' in os.listdir() else 'sparse')])
         while True:
            
             gz.seek(0)
@@ -387,6 +382,8 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
 
         utils.create_log('combine')
 
+        os.chdir('..')
+
     msg(f'executed "genolearn combine"')
 
 
@@ -399,7 +396,7 @@ def preprocess_meta(output, meta_path, identifier_column, target_column, group_c
 
     active   = get_active()
 
-    pdir     = os.path.join(wd, 'preprocess')
+    pdir     = 'preprocess'
     file_dir = os.path.join(pdir, 'sparse' if 'sparse' in os.listdir(pdir) else 'dense')
     files    = [file.replace('.npz', '') for file in os.listdir(file_dir)]
     meta_df  = pd.read_csv(meta_path).applymap(str)
@@ -439,10 +436,9 @@ def preprocess_meta(output, meta_path, identifier_column, target_column, group_c
         elif group in test_values:
             meta_json['Test'].append(group)
     
-    path = os.path.join(wd, 'meta')
-    os.makedirs(path, exist_ok = True)
+    os.makedirs('meta', exist_ok = True)
 
-    with open(os.path.join(path, output), 'w') as file:
+    with open(os.path.join('meta', output), 'w') as file:
         print(json.dumps(meta_json, indent = 4), file = file)
 
-    print(f'created "{output}" in {path}')
+    print(f'created "{output}" in meta')

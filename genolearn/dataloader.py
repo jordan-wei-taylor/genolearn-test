@@ -26,10 +26,10 @@
     DataLoader.identifiers
 
 """
+from   genolearn import working_directory
 import os
 import json
 import scipy.sparse
-import pandas as pd
 import numpy  as np
 import gzip
 
@@ -39,13 +39,31 @@ class DataLoader():
 
     Parameters
     ----------
-        preprocess_dir : str
-            Path to directory of preprocessed sequence data.
-
-        meta_file : str
+        meta_file   : str
             Preprocessed metadata within ``preprocess_dir``/meta
+        working_dir : str
+            Path to working directory
+
     """
-    def __init__(self, working_dir, meta_file):
+    def __init__(self, meta_file, working_dir = working_directory):
+        
+        if working_dir is None:
+            raise Exception('execute GenoLearn\'s setup command first')
+
+        if not os.path.exists(working_dir) or '.genolearn' not in os.listdir(working_dir):
+            raise Exception(f'"{working_dir}" not a valid working directory')
+
+        path  = os.path.join(working_dir, 'meta')
+        if not os.path.exists(path):
+            raise Exception('no preprocessed metadata to load')
+        
+        valid = os.listdir(path)
+
+        if len(valid) == 0:
+            raise Exception(f'no preprocessed metadata in {path}')
+            
+        if meta_file not in valid:
+            raise Exception(f'"{meta_file}" not found in "{path}" - expect one of' + '\n  •'.join([''] + valid))
 
         self.dense          = os.path.exists(os.path.join(working_dir, 'preprocess', 'dense'))
         self.working_dir    = working_dir
@@ -82,8 +100,16 @@ class DataLoader():
 
     def _check_identifiers(self, identifiers):
         ret = []
+        
         for identifier in identifiers:
 
+            # unlabelled data
+            if identifier == 'unlabelled':
+                for identifier in os.listdir(self.data_dir):
+                    identifier = identifier.replace('.npz', '')
+                    if identifier not in self.meta['identifiers']:
+                        ret.append(identifier)
+                    
             # check if it is a group and append entire associated identifiers
             if identifier in self.meta['group']:
                 ret += self.meta['group'][identifier]

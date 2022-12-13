@@ -1,9 +1,7 @@
-
 def train(output_dir, meta, model_config, feature_selection, num_features, min_count, target_subset, metric, aggregate_func):
 
     import os
     import json
-        
 
     command = 'genolearn train'
 
@@ -12,7 +10,6 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
     from genolearn.models                import grid_predictions
     from genolearn.dataloader            import DataLoader
     from genolearn.logger                import msg, Writing
-    from genolearn           import get_active, wd
 
     import warnings
     import numpy as np
@@ -20,7 +17,6 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
     import json
     import pickle
 
-    active = get_active()
 
     os.makedirs(output_dir)
 
@@ -36,14 +32,14 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
 
     # print_dict('executing "train.py" with parameters', params)
 
-    with open(os.path.join(wd, 'model', model_config)) as file:
+    with open(os.path.join('model', model_config)) as file:
         model_config = json.load(file)
         model        = model_config.pop('model')
 
     kwargs     = {key : val for key, val in model_config.items() if isinstance(val, list)}
     common     = {key : val for key, val in model_config.items() if key not in kwargs}
 
-    dataloader = DataLoader(wd, meta)
+    dataloader = DataLoader(meta)
     selection  = dataloader.load_feature_selection(feature_selection).argsort()
 
     Model   = get_model(model)

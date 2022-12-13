@@ -1,6 +1,6 @@
 package:
-  name: genolearn
-  version: 0.0.8dev
+  name: genolearn-dev
+  version: 0.0.8
 
 source:
   path: .
@@ -10,7 +10,8 @@ build:
   script: "{{ PYTHON }} -m pip install . -vv --no-deps"
   noarch: python
   entry_points:
-    - genolearn = genolearn.cli:cli
+    - genolearn = genolearn.cli:menu
+    - genolearn-clean = genolearn.cli.clean
   include_recipe: False
   
 requirements:

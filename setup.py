@@ -36,7 +36,8 @@ setup(
     ],
     entry_points     = '''
         [console_scripts]
-        genolearn=genolearn.cli:cli
+        genolearn=genolearn.cli:menu
+        genolearn-clean=genolearn.cli:clean
     ''',
     
 )

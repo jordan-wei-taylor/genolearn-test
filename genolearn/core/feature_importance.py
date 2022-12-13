@@ -68,15 +68,13 @@ def feature_importance(meta, feature_selection, model, output):
 
     from   genolearn.dataloader import DataLoader
     from   genolearn.logger     import Writing, msg
-    from   genolearn import get_active, wd
 
     import pickle
 
     import pandas as pd
     import numpy  as np
 
-    active     = get_active()
-    dataloader = DataLoader(wd, meta)
+    dataloader = DataLoader(meta)
 
     selection  = dataloader.load_feature_selection(feature_selection).argsort()
 

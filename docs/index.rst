@@ -12,7 +12,7 @@ Ensure you have a minimum Python3 version of 3.10.
 Pip
 ====================
 
-Stable Install
+Latest Stable Install
 
 Ubuntu / Mac OS
 ---------------
@@ -44,6 +44,13 @@ Windows
     pip install genolearn
 
 
+Latest Unstable Development Install
+
+.. code-block:: sh
+
+    pip install -e git+https://github.com/jordan-wei-taylor/genolearn.git@master#egg=genolearn
+
+
 Conda
 ======================
 
@@ -54,16 +61,23 @@ Stable Install
     # make sure my channel and conda-forge are your first channels for installation
     conda config --prepend channels conda-forge --prepend channels jordan-wei-taylor
 
-    # create a new conda environment env with genolearn installed
-    conda create --name env genolearn
+    # create a new conda environment env
+    conda create --name env
 
-    # activate environment to use genolearn
+    # activate environment to use
     conda activate env
 
+    # install genolearn
+    conda install genolearn
+
+
+Unstable Development Install
 
 .. code-block:: sh
+    
+    conda install genolearn-dev
 
-    pip install git+https://github.com/jordan-wei-taylor/genolearn.git
+
 
 .. toctree::
     :hidden:
@@ -113,16 +127,8 @@ Stable Install
     :titlesonly:
     :caption: Usage
 
-    data <usage/data>
-    dir <usage/dir>
-    evaluate <usage/evaluate>
-    feature-importance <usage/feature-importance>
-    feature-selection <usage/feature-selection>
-    model <usage/model/index>
-    next <usage/next>
-    preprocess <usage/preprocess>
-    print <usage/print>
-    train <usage/train>
+    commands <usage/commands>
+
     
     
 

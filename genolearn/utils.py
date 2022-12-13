@@ -36,6 +36,9 @@ def create_log(filename, path = '.'):
     contents = f'datetime : {DATETIME}\nduration : {h:02.0f}h {m:02.0f}m {s:02.0f}s\nmemory   : {ram:.3f} GB'
 
     if PARAMS:
+        for key, value in PARAMS.items():
+            if isinstance(value, str):
+                PARAMS[key] = value.replace(os.path.expanduser('~'), '~')
         contents = f'{contents}\n\n{json.dumps(PARAMS, indent = 4)}'
 
     contents = f'{contents}\n'
@@ -65,7 +68,9 @@ def subdir(path, sub, ext = 0):
         return subdir(path, sub, ext + 1)
     return _sub
 
-def _gen_prompt(msg, type, default ,space, default_option):
+def _gen_prompt(msg, type, default ,space, default_option, multiple):
+    if multiple:
+        msg = f'{msg}*'
     msg = f'{msg}' + ' ' * space
     if isinstance(type, click.Choice):
         msg = f'{msg} ' + '{' + ', '.join(map(str, type.choices)) + '}'
@@ -115,6 +120,9 @@ def _prompt(msg, type, default, default_option = True, multiple = False):
         # convert range string to list of integers
         value = _convert_range(value)
 
+    if value == '*':
+        value = ','.join(type.choices)
+
     # detect if multi-value input
     if ',' in value:
         values = re.split(' ?, ?', value)
@@ -146,32 +154,29 @@ def _default(info):
 
 def prompt(params):
     prompts = []
-    hi      = 0
     for key, info in params.items():
         default = _default(info)
-        prompt = _gen_prompt(info.get('prompt', key), info['type'], default, 0, 'default' in info or default)
+        prompt = _gen_prompt(info.get('prompt', key), info['type'], default, 0, 'default' in info or default, info.get('multiple', False))
         prompts.append(prompt)
-        hi     = max(hi, len(prompt))
     
+    length = max(map(len, prompts))
     config = {}
     for i, (key, info) in enumerate(params.items()):
         if isinstance(info['type'], click.Choice) and len(info['type'].choices) == 1:
             config[key] = info['type'].choices[0]
             continue
-        space   = hi - len(prompts[i])
         default = _default(info)
         flag    = 'default' in info or default
-        prompt  =  _gen_prompt(info.get('prompt', key), info['type'], default, space, flag)
-        value   = _prompt(prompt, info['type'], default, flag, info.get('multiple', False))
+        value   = _prompt(f'{prompts[i]:{length}s}', info['type'], default, flag, info.get('multiple', False))
         config[key] = value
     return config
 
 def append(command):
-    from genolearn import wd
-    if not os.path.exists(wd):
-        os.makedirs(wd)
-    with open(os.path.join(wd, '.history'), 'a') as f:
-        f.write(command + '\n')
+    with open('.genolearn') as file:
+        log = json.load(file)
+        log['history'].append(command)
+    with open('.genolearn', 'w') as file:
+        print(json.dumps(log, indent = 4), file = file, end = '')
 
 START    = time()
 RAMSTART = get_process_memory()
