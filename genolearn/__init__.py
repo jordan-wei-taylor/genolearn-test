@@ -21,11 +21,13 @@ elif os.path.exists(path):
 else:
     working_directory = None
 
-ls = os.listdir(working_directory if working_directory else '.')
+ls = os.listdir(working_directory if working_directory and os.path.exists(working_directory) else '.')
 
 def listdir(path = '.'):
-    path = os.path.join(working_directory, path)
-    return os.listdir(path) if os.path.exists(path) else []
+    if working_directory and os.path.exists(working_directory):
+        path = os.path.join(working_directory, path)
+        return os.listdir(path) if os.path.exists(path) else []
+    return []
 
 def get_active():
     try:

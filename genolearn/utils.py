@@ -171,13 +171,6 @@ def prompt(params):
         config[key] = value
     return config
 
-def append(command):
-    with open('.genolearn') as file:
-        log = json.load(file)
-        log['history'].append(command)
-    with open('.genolearn', 'w') as file:
-        print(json.dumps(log, indent = 4), file = file, end = '')
-
 START    = time()
 RAMSTART = get_process_memory()
 RAM      = RAMSTART
