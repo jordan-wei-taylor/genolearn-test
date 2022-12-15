@@ -38,6 +38,7 @@ setup(
         [console_scripts]
         genolearn=genolearn.cli:menu
         genolearn-clean=genolearn.cli:clean
+        genolearn-setup=genolearn.cli:setup
     ''',
     
 )
