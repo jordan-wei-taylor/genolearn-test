@@ -11,7 +11,8 @@ build:
   noarch: python
   entry_points:
     - genolearn = genolearn.cli:menu
-    - genolearn-clean = genolearn.cli.clean
+    - genolearn-clean = genolearn.cli:clean
+    - genolearn-setup = genolearn.cli:setup
   include_recipe: False
   
 requirements:

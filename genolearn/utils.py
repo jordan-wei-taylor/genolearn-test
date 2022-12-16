@@ -25,6 +25,11 @@ def set_params(params):
     global PARAMS
     PARAMS = params
 
+def get_params():
+    """ gets the global PARAMS value """
+    global PARAMS
+    return PARAMS
+    
 def create_log(filename, path = '.'):
     """ creates a text log file with total time elapsed and RAM usage """
     global DATETIME, START, RAM, RAMSTART, PARAMS

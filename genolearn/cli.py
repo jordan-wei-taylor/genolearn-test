@@ -1,5 +1,5 @@
 from   genolearn.logger import up, clear, print_dict
-from   genolearn.utils  import prompt, _prompt
+from   genolearn.utils  import prompt, _prompt, set_params, get_params
 from   genolearn        import __version__, ls, working_directory, get_active, listdir
 
 from   shutil           import rmtree
@@ -277,7 +277,7 @@ def setup():
         enum(options, 'select metadata csv for setup', back = setup)
     if working_directory == os.path.abspath('.'):
         return print('current directory is already setup')
-    dirs = [dir for dir in ls if os.path.isdir(dir) and not dir.startswith('_')]
+    dirs = [dir for dir in ls if os.path.isdir(dir) and not dir.startswith('_') and not dir.startswith('.')]
     options = {'.' : {'func' : _setup_meta, 'info' : '(current directory)'}}
     for dir in dirs:
         options[dir] = {'func' : _setup_meta}
@@ -288,7 +288,7 @@ def _setup(data_dir, meta):
     df = pd.read_csv(os.path.join(data_dir, meta))
     if len(df.columns) < 2:
         return print(f'"{meta}" does not contain enough columns')
-    config = dict(data_dir = os.path.abspath(data_dir), meta = meta, history = [f'setup ({__version__})'])
+    config = dict(data_dir = data_dir, meta = meta, history = [f'setup ({__version__})'])
     with open('.genolearn', 'w') as file:
         print(json.dumps(config, indent = 4), file = file, end = '')
     print('setup complete in current directory')
@@ -319,7 +319,7 @@ def _clean():
 
 def preprocess_sequence_data():
     """ Select sequential data to preprocess """
-    gzs     = [gz for gz in os.listdir(active['data_dir']) if gz.endswith('.gz')]
+    gzs     = [gz for gz in os.listdir(os.path.join(working_directory, active['data_dir'])) if gz.endswith('.gz')]
     if len(gzs) == 0:
         return print('no sequence data (*.gz) files found!')
     elif len(gzs) == 1:
@@ -335,16 +335,16 @@ def preprocess_sequence(data):
                   sparse = dict(type = click.BOOL, default = True),
                   dense = dict(type = click.BOOL, default = True),
                   verbose = dict(type = click.IntRange(1), default = 250000),
-                  max_features = dict(type = click.IntRange(-1), default = -1))
+                  max_features = dict(type = click.IntRange(-1), default = None))
 
     params = dict(data = data)
     params.update(prompt(info))
 
     assert params['dense'] or params['sparse'], 'set either / both dense and sparse to True'
 
-    params['data']         = os.path.join(active['data_dir'], data)
+    params['data']         = os.path.join(working_directory, active['data_dir'], data).replace(os.path.expanduser('~'), '~')
 
-    if params['max_features'] != -1:
+    if params['max_features'] != None:
         params['verbose'] = params['max_features'] // 10
 
     from multiprocessing import cpu_count
@@ -354,7 +354,7 @@ def preprocess_sequence(data):
     if params['n_processes'] == None:
         params['n_processes'] = cpu_count()
 
-    print_dict('executing "preprocess" with parameters:', params)
+    print_dict('executing "preprocess sequence" with parameters:', params)
 
     from   genolearn.core.preprocess import preprocess as core_preprocess
 
@@ -370,8 +370,14 @@ def preprocess_combine_data():
         for line in log['history']:
             if line.startswith('preprocess sequence'):
                 preprocessed.append(line[21:-1])
+    if 'combine.log' in listdir('preprocess'):
+        log  = read_log(os.path.join('preprocess', 'combine.log'))
+        if isinstance(log['data'], str):
+            preprocessed.append(os.path.basename(log['data']))
+        else:
+            preprocessed += [os.path.basename(file) for file in log['data']]
     options = {}
-    for data in os.listdir(active['data_dir']):
+    for data in listdir(active['data_dir']):
         if data.endswith('.gz') and data not in preprocessed:
             options[data] = {'func' : preprocess_combine}
     enum(options, 'sequence data', back = preprocess)
@@ -389,9 +395,9 @@ def preprocess_combine(data):
     meta   = read_log(os.path.join('preprocess', 'preprocess.log'))
     params['max_features'] = meta['max_features']
 
-    params['data'] = os.path.join(active['data_dir'], data)
+    params['data'] = os.path.join(working_directory, active['data_dir'], data)
 
-    if params['max_features'] != -1:
+    if params['max_features'] != None:
         params['verbose'] = params['max_features'] // 10
         
     from multiprocessing import cpu_count
@@ -401,17 +407,26 @@ def preprocess_combine(data):
     if params['n_processes'] == None:
         params['n_processes'] = cpu_count()
 
-    print_dict('executing "combine" with parameters:', params)
+    print_dict('executing "preprocess combine" with parameters:', params)
 
     from   genolearn.core.preprocess import combine
 
+    if 'combine.log' in listdir('preprocess'):
+        log    = read_log(os.path.join('preprocess', 'combine.log'))
+        PARAMS = get_params().copy()
+        if isinstance(log['data'], str):
+            PARAMS['data']  = [log['data'], params['data'].replace(os.path.expanduser('~'), '~')]
+        else:
+            PARAMS['data'] += [log['data']]
+        set_params(PARAMS)
     os.chdir(working_directory)
     combine('preprocess', **params)
+        
     append(f'preprocess combine ({data})')
 
 def preprocess_meta():
     """ Preprocesses metadata """
-    meta_path      = os.path.join(active['data_dir'], active['meta'])
+    meta_path      = os.path.join(working_directory, active['data_dir'], active['meta'])
     print(f'preprocess {os.path.basename(active["meta"])}')
 
     meta_df        = pd.read_csv(meta_path).applymap(str)
@@ -815,7 +830,6 @@ See https://genolearn.readthedocs.io for documentation.
 if check_working_directory():
     pre_menu = f'{pre_menu}\n\nWorking directory: {working_directory.replace(os.path.expanduser("~"), "~")}'
 
-    
 def menu():
     """ Main menu for GenoLearn """
 

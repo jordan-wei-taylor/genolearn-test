@@ -67,6 +67,9 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
         msg(f'Attempting to open to many files! Try reducing the number')
         return 
 
+    if max_features == None:
+        max_features = -1
+
     n_processes    = cpu_count() if n_processes == 'auto' else int(n_processes)
     
     first_run  = True
@@ -83,7 +86,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
         _open  = open
         decode = lambda line : line
 
-    with _open(data) as gz:
+    with _open(os.path.expanduser(data)) as gz:
         
         if os.path.exists(preprocess_dir):                    
             rmtree(preprocess_dir)
@@ -130,14 +133,10 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
                             skip = c == batch_size
                         add(files[SRR], m - 1, count)
 
-                if m % verbose == 0:
-                    msg(f'{C:10,d} {m:10,d}')
+                msg(f'{C:10,d} {m:10,d}', inline = m % verbose)                  
                
                 if m == max_features:
                     break
-           
-            if m % verbose:
-                msg(f'{C:10,d} {m:10,d}')
 
             for f in files.values():
                 f.close()
@@ -185,8 +184,9 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
                     functions.append(to_dense)
                     os.mkdir('dense')
            
-            with Pool(n_processes) as pool:
-                pool.map(convert, list(files))
+            with Waiting('converting', 'converted', 'to numpy arrays'):
+                with Pool(n_processes) as pool:
+                    pool.map(convert, list(files))
 
             if not skipped:
                 break
@@ -204,7 +204,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
 
         os.chdir('..')
 
-    msg(f'executed "genolearn preprocess"')
+    msg(f'executed "preprocess sequence"')
 
 def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose):
     """
@@ -221,8 +221,7 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
     See https://genolearn.readthedocs.io/tutorial/combine for more details.
     """
 
-    from   genolearn.logger       import msg, print_dict
-    from   genolearn.core.preprocess import gather_counts, gather_feature, gather_samples, init, add, get_dtype
+    from   genolearn.logger       import msg, Waiting
     from   genolearn              import utils
     from   pathos.multiprocessing import cpu_count, Pool
 
@@ -309,14 +308,10 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
                             skip = c == batch_size
                         add(files[SRR], m - 1, count)
 
-                if m % verbose == 0:
-                    msg(f'{C:10,d} {m:10,d}')
+                msg(f'{C:10,d} {m:10,d}', inline = m % verbose)
                
                 if m == max_features:
                     break
-           
-            if m % verbose:
-                msg(f'{C:10,d} {m:10,d}')
 
             for f in files.values():
                 f.close()
@@ -364,9 +359,10 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
 
                 if 'dense' in os.listdir():
                     functions.append(to_dense)
-           
-            with Pool(n_processes) as pool:
-                pool.map(convert, list(files))
+
+            with Waiting('converting', 'converted', 'to numpy arrays'):
+                with Pool(n_processes) as pool:
+                    pool.map(convert, list(files))
 
             if not skipped:
                 break
@@ -384,7 +380,7 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
 
         os.chdir('..')
 
-    msg(f'executed "genolearn combine"')
+    msg(f'executed "preprocess combine"')
 
 
 def preprocess_meta(output, meta_path, identifier_column, target_column, group_column, train_values, test_values, ptrain):
