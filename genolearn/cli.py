@@ -398,9 +398,22 @@ def preprocess_sequence_data():
     gzs     = [gz for gz in os.listdir(os.path.join(working_directory, active['data_dir'])) if gz.endswith('.gz')]
     if len(gzs) == 0:
         return print('no sequence data (*.gz) files found!')
-    elif len(gzs) == 1:
-        return preprocess_sequence(gzs[0])
-    options = {gz : {'func' : preprocess_sequence} for gz in gzs}
+    options = {}
+    for gz in gzs:
+        info = ''
+        if 'preprocess' in listdir():
+            log = read_log(os.path.join('preprocess', 'preprocess.log'))
+            if os.path.basename(log['data']) == gz:
+                info = '(already preprocessed)'
+            if 'combine.log' in listdir('preprocess'):
+                log = read_log(os.path.join('preprocess', 'combine.log'))
+                if isinstance(log['data'], str):
+                    data = [os.path.basename(log['data'])]
+                else:
+                    data = [os.path.basename(data) for data in log['data']]
+                if gz in data:
+                    info = '(already combined)'
+        options[gz] = {'func' : preprocess_sequence, 'info' : info}
     enum(options, 'select sequence data to preprocess', back = preprocess)
 
 def preprocess_sequence(data):
