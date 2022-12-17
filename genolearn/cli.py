@@ -667,7 +667,7 @@ def _train():
                 info = detect_train(meta, feature_selection, model_config)
                 options[model_config] = {'func' : func, 'info' : info}
             pre_text = f'select model config to use with "{meta}" metadata and "{feature_selection}" feature selection for train command'
-            enum(options, pre_text, back = _select_feature_selection)
+            enum(options, pre_text, back = lambda : _select_feature_selection(meta))
         options = {}
         for file in listdir('feature-selection'):
             if file.endswith('.log'):
@@ -843,5 +843,7 @@ def menu():
             if not check_history(command):
                 k = i
                 break
-        
-    enum(options, pre_menu, k = k, back = exit)
+    try:
+        enum(options, pre_menu, k = k, back = exit)
+    except KeyboardInterrupt:
+        print()
