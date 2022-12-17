@@ -675,7 +675,9 @@ def _train():
                 if log['meta'] == meta:
                     selection = file.replace('.log', '')
                     options[selection] = {'func' : lambda selection : _select_model_config(meta, selection), 'info' : detect_train(meta, selection)}
-        enum(options, f'select feature selection to use with "{meta}" for train command', back = _train)
+        if len(options) == 0:
+            return print(f'no feature selection found for metadata "{meta}"!\nexecute genolearn feature-selection with metadata "{meta}" first.')
+        enum(options, f'select feature selection to use with "{meta}" metadata for train command', back = _train)
     options = {meta : {'func' : _select_feature_selection, 'info' : detect_train(meta)} for meta in listdir('meta')}
     enum(options, 'select metadata for train command')
 
