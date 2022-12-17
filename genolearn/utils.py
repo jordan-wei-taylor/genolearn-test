@@ -23,12 +23,12 @@ def monitor_RAM():
 def set_params(params):
     """ sets the global PARAMS value """
     global PARAMS
-    PARAMS = params
+    PARAMS = params.copy()
 
 def get_params():
     """ gets the global PARAMS value """
     global PARAMS
-    return PARAMS
+    return PARAMS.copy()
     
 def create_log(filename, path = '.'):
     """ creates a text log file with total time elapsed and RAM usage """

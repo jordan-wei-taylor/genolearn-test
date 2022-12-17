@@ -57,7 +57,7 @@ See https://genolearn.readthedocs.io for documentation.
 if check_working_directory():
     PRE = f'{PRE}\n\nWorking directory: {working_directory.replace(os.path.expanduser("~"), "~")}'
 
-def enum(options, pre = 'commands', post = 'user input', k = None, back = None):
+def enum(options, command = '', pre = '', post = 'user input', k = None, back = None):
     """
     Prints enumerated options to for user input, records the user input, then executes an associated function or returns the option key.
 
@@ -69,8 +69,11 @@ def enum(options, pre = 'commands', post = 'user input', k = None, back = None):
                 info   : information explaining what the prompt is for
                 func   : function to execute should the user choose the option
         
-        pre, str ['commands']
-            Text to print prior to the enumerated options.
+        command, str ['']
+            Command text to print prior to pre-text.
+
+        pre, str ['']
+            Pre-text to print prior to the enumerated options.
 
         post, str ['user input']
             Text to print post enumerated options.
@@ -110,7 +113,10 @@ def enum(options, pre = 'commands', post = 'user input', k = None, back = None):
     c = max(max(len(option.get('prompt', name)) for name, option in options.items()) + 15, 30)
 
     # print the pre-text
-    pre = f'{PRE}\n\n{pre}' if pre else PRE
+    if command:
+        pre = f'{PRE}\n\nCommand: {command}\n\n{pre}'
+    else:
+        pre = f'{PRE}\n\nSelect a command'
     print(pre, '\n')
 
     # print enumerated options
@@ -190,13 +196,13 @@ def check_history(string):
                 return True
         return False
 
-def select_train_dir(pre, func, back, train_dir_func = None):
+def select_train_dir(command, func, back, train_dir_func = None):
     """ Wrapper for first selecting training directory """
     def _select_train_dir():
         train_dirs = os.listdir(os.path.join(working_directory, 'train'))
         common  = lambda train_dir : {'func' : func, 'info' : train_dir_func(train_dir)} if train_dir_func else {'func' : func}
         options = {train_dir : common(train_dir) for train_dir in train_dirs}
-        enum(options, pre, back = back)
+        enum(options, command, 'Select a train subdirectory', back = back)
     return _select_train_dir    
     
 def detect_feature_importance(train_dir):
@@ -227,11 +233,11 @@ def setup():
         enum(options, 'select metadata csv for setup', back = setup)
     if working_directory == os.path.abspath('.'):
         return print('current directory is already setup')
-    dirs = [dir for dir in ls if os.path.isdir(dir) and not dir.startswith('_') and not dir.startswith('.')]
+    dirs = [dir for dir in os.listdir() if os.path.isdir(dir) and not dir.startswith('_') and not dir.startswith('.')]
     options = {'.' : {'func' : _setup_meta, 'info' : '(current directory)'}}
     for dir in dirs:
         options[dir] = {'func' : _setup_meta}
-    enum(options, f'select data directory for setup within {os.path.abspath(".").replace(os.path.expanduser("~"), "~")}')
+    enum(options, 'setup', f'select data directory for setup within {os.path.abspath(".").replace(os.path.expanduser("~"), "~")}', back = exit)
 
 def _setup(data_dir, meta):
     """ Sets the current working directory and metadata file within it """
@@ -250,7 +256,7 @@ def clean():
     """ Deletes all GenoLearn generated files upon user confirmation """
     if working_directory and os.path.exists(working_directory):
         option = dict(confirm = dict(func = _clean, info = 'this cannot be undone'))
-        enum(option, f'confirm deletion of all GenoLearn generated files in {working_directory.replace(os.path.expanduser("~"), "~")}?', back = exit)
+        enum(option, 'clean', 'confirm deletion of all GenoLearn generated files in {working_directory.replace(os.path.expanduser("~"), "~")}?', back = exit)
     else:
         print('unknown working directory - either cd into working directory then re-execute genolearn-clean or check if directory already clean')
 
@@ -294,40 +300,36 @@ def __print(name, limit = 5):
             if i < 1:
                 print()
     if name == 'config':
-        print('config')
+        print('.genolearn config\n')
         with open('.genolearn') as f:
             log = json.load(f)
             log.pop('history')
             print(json.dumps(log, indent = 4))
     elif name == 'history':
-        print('history')
+        print('history\n')
         with open('.genolearn') as f:
             log = json.load(f)
             print('\n'.join(log['history']))
+    elif 'meta' in name or 'model' in name:
+        directory = os.path.dirname(name)
+        dirname   = os.path.basename(directory)
+        print(os.path.join(dirname, os.path.basename(name)), '\n')
+        with open(name) as f:
+            config = reduce(json.load(f), limit)
+            print(json.dumps(config, indent = 4).replace('"', '').replace('...: ...', '...'))
     else:
-        flag      = True
-        for i, location in enumerate(locations):
-            if os.path.exists(location):
-                if name in os.listdir(location):
-                    file = os.path.join(location, name)
-                    with open(file) as f:
-                        config = reduce(json.load(f), limit)
-                        print(file.replace(os.path.expanduser('~'), '~'))
-                        print(json.dumps(config, indent = 4).replace('"', '').replace('...: ...', '...'))
-                        flag = False
-                        break
-            else:
-                command = 'config model' if i else 'preprocess meta'
-                print(f'{location} (does not exist - execute "genolearn {command}")\n')
-        if flag:
-            print(f'could not find "{name}" in' + '\n  - '.join([''] + locations))
+        directory = os.path.dirname(name)
+        dirname   = os.path.basename(directory)
+        print(os.path.join(dirname, os.path.basename(name)), '\n')
+        with open(name) as f:
+            print(f.read())
 
 def analyse(meta):
     """ Analyse preprocessed metadata for class label distribution and suggested target subset list """
     info  = dict(min_count  = dict(type = click.IntRange(0), default = 10),
                  proportion = dict(type = click.BOOL, default = False))
 
-    print(f'analysing "{meta}"')
+    print(f'{PRE}\n\nCommand: print metadata analyse\n\nParameters to analyse "{meta}"\n')
     params = dict(meta = meta)
     params.update(prompt(info))
 
@@ -343,6 +345,7 @@ def analyse(meta):
 
 def head(meta, num = 10):
     """ Prints the first NUM rows of meta data """
+    print(os.path.join('meta', meta), '\n')
     meta   = os.path.join(working_directory, 'meta', meta)
     from genolearn.core.data import head
     head(meta, num)
@@ -350,6 +353,7 @@ def head(meta, num = 10):
 
 def tail(meta, num = 10):
     """ Prints the last NUM rows of meta data """
+    print(os.path.join('meta', meta), '\n')
     meta   = os.path.join(working_directory, 'meta', meta)
     from genolearn.core.data import tail
     tail(meta, num)
@@ -357,39 +361,62 @@ def tail(meta, num = 10):
 
 def sample(meta, num = 10):
     """ Prints random NUM rows of meta data """
+    print(os.path.join('meta', meta), '\n')
     meta   = os.path.join(working_directory, 'meta', meta)
     from genolearn.core.data import sample
     sample(meta, num)
 
-def select_meta(pre, func):
+def select_meta(command, pre, func):
     """ Wrapper for first selecting metadata """
     def _select_meta():
         options = {meta : {'func' : func} for meta in metas}
-        enum(options, pre, back = metadata)
+        enum(options, command, pre, back = metadata)
     return _select_meta
 
 def metadata():
     """ metadata subcommand for the print command """
-    pre     = lambda command : f'select metadata for data {command} command'
-    options = {'analyse' : {'info' : 'analyses the metadata'                , 'func' : select_meta(pre('analyse'), analyse)},
-               'head'    : {'info' : 'prints the head of the metadata'      , 'func' : select_meta(pre('head')   , head   )},
-               'tail'    : {'info' : 'prints the tail of the metadata'      , 'func' : select_meta(pre('tail')   , tail   )},
-               'sample'  : {'info' : 'prints random entries of the metadata', 'func' : select_meta(pre('sample') , sample )}}
-    enum(options, 'prints metadata information', back = _print)
+    def args(func):
+        name    = func.__name__
+        command = f'print metadata {name}'
+        pre     = 'Select metadata'
+        return command, pre, func
+
+    options = {'analyse' : {'info' : 'analyses the metadata'                , 'func' : select_meta(*args(analyse))},
+               'head'    : {'info' : 'prints the head of the metadata'      , 'func' : select_meta(*args(head))},
+               'tail'    : {'info' : 'prints the tail of the metadata'      , 'func' : select_meta(*args(tail))},
+               'sample'  : {'info' : 'prints random entries of the metadata', 'func' : select_meta(*args(sample))}}
+    enum(options, 'print metadata', 'Prints metadata information', back = _print)
 
 def _print():
     """ Prints various files GenoLearn relies on """
     func     = lambda command : __print(command)
-    commands = dict(history = dict(info = 'history of significant GenoLearn commands', func = func),
+    options  = dict(history = dict(info = 'history of significant GenoLearn commands', func = func),
                     config  = dict(info = 'current config', func = func))
-    if 'meta' in ls:
-        commands['meta'] = dict(info = 'metadata information', func = metadata)
 
-    for subdir in ['meta', 'model']:
-        if subdir in ls:
-            for file in listdir( subdir):
-                commands[file] = dict(info = f'({subdir})', func = func)
-    enum(commands, 'print commands', back = menu)
+    if 'meta' in ls:
+        options['meta'] = dict(info = 'metadata information', func = metadata)
+
+    if 'preprocess' in ls:               
+        key          = os.path.join(working_directory, 'preprocess', 'preprocess.log')
+        options[key] = dict(prompt = 'preprocess.log', info = '(preprocess)', func = func)
+
+        if 'combine.log' in listdir('preprocess'):
+            key          = os.path.join(working_directory, 'preprocess', 'combine.log')
+            options[key] = dict(prompt = 'combine.log', info = '(preprocess)', func = func)
+
+    for subdir in ['meta', 'feature-selection', 'model']:
+        for file in listdir(subdir):
+            if subdir != 'feature-selection' or file.endswith('.log'):
+                key          = os.path.join(working_directory, subdir, file)
+                options[key] = dict(prompt = file, info = f'({subdir})', func = func)
+
+    for subdir in listdir('train'):
+        for sub in listdir(os.path.join('train', subdir)):
+            if sub.endswith('.log'):
+                key          = os.path.join(working_directory, 'train', subdir, sub)
+                options[key] = dict(prompt = sub, info = f'({os.path.join("train", subdir)})', func = func)
+
+    enum(options, 'print', 'Select option to print', back = menu)
 
 """ genolearn preprocess """
 
@@ -414,11 +441,11 @@ def preprocess_sequence_data():
                 if gz in data:
                     info = '(already combined)'
         options[gz] = {'func' : preprocess_sequence, 'info' : info}
-    enum(options, 'select sequence data to preprocess', back = preprocess)
+    enum(options, 'preprocess sequence', 'Select option to preprocess', back = preprocess)
 
 def preprocess_sequence(data):
     """ Preprocesses sequential data """
-    print(f'preprocess {data}')
+    print(f'{PRE}\n\nparameters for "{data}" to preprocess\n')
     info   = dict(batch_size = dict(type = click.INT, default = None),
                   n_processes = dict(type = click.INT, default = None),
                   sparse = dict(type = click.BOOL, default = True),
@@ -469,7 +496,9 @@ def preprocess_combine_data():
     for data in listdir(active['data_dir']):
         if data.endswith('.gz') and data not in preprocessed:
             options[data] = {'func' : preprocess_combine}
-    enum(options, 'sequence data', back = preprocess)
+    if len(options) == 0:
+        return print('no un-preprocessed sequence data (.gz) files found!')
+    enum(options, 'preprocess combine' ,'Select option to preprocess and combine', back = preprocess)
 
 def preprocess_combine(data):
     """ Preprocess sequential data and combine with already preprocessed data """
@@ -516,7 +545,7 @@ def preprocess_combine(data):
 def preprocess_meta():
     """ Preprocesses metadata """
     meta_path      = os.path.join(working_directory, active['data_dir'], active['meta'])
-    print(f'preprocess {os.path.basename(active["meta"])}')
+    print(f'{PRE}\n\nCommand: preprocess meta\n\nParameters for preprocessing "{os.path.basename(active["meta"])}"\n')
 
     meta_df        = pd.read_csv(meta_path).applymap(str)
     valid_columns  = set(meta_df.columns)
@@ -558,7 +587,7 @@ def preprocess():
                              'func' : preprocess_combine_data},
                'meta'     : {'info' : 'preprocesses meta data',
                              'func' : preprocess_meta}}
-    enum(options, 'preprocess commands', k = None if check_history('preprocess sequence') else 1)
+    enum(options, 'preprocess', 'Select a preprocess subcommand', k = None if check_history('preprocess sequence') else 1)
 
 """ genolearn feature-selection """
 
@@ -591,23 +620,23 @@ def _feature_selection():
                     py  = file.replace('.py', '')
                     key = os.path.join(dir, file)
                     options[key] = {'prompt' : py, 'func' : func, 'info' : detect(meta, py)}        
-        enum(options, f'select feature selection method to use for "{meta}" metadata', back = _feature_selection)
+        enum(options, 'feature-selection', f'Select a feature selection method to use for "{meta}" metadata', back = _feature_selection)
 
     options = {meta : {'func' : _select_feature_selection, 'info' : detect(meta)} for meta in metas}
-    enum(options, 'select metadata file for feature selection command')
+    enum(options, 'feature-selection', 'Select a metadata file')
             
 def feature_selection(meta, module):
     """ Computes Feature Selection (Fisher by default) """
-    print(f'set parameter for feature selection using "{meta}" meta with "{os.path.basename(module)[:-3]}" method')
+    print(f'{PRE}\n\nCommand: feature-selection\n\nParameters for feature selection using "{meta}" meta with "{os.path.basename(module)[:-3]}" method\n')
     py     = os.path.basename(module).replace('.py', '')
     params = dict(meta = meta, method = py, module = module.replace(os.path.expanduser('~'), '~'))
     info   = dict(name = dict(default = f'{params["meta"]}-{py}', type = click.STRING))
     
     params.update(prompt(info))
 
-    params['log'] = f"{params['name']}.log"
-
     print_dict('executing "feature-selection" with parameters:', params)
+
+    params['log'] = f"{params['name']}.log"
 
     from   genolearn.core.feature_selection import feature_selection
     os.chdir(working_directory)
@@ -655,7 +684,7 @@ def _model(name):
     """ Given a model name, prompts user for hyperparameter settings """
     classifier  = classifiers[name]
     params      = {'model' : classifier.pop('model')}
-    print(f'parameters for {params["model"]}')
+    print(f'{PRE}\n\nCommand: model-config\n\nParameters for {params["model"]}\n')
     params.update(prompt(classifier))
     config_name = params.pop('config_name')
     path        = os.path.join(working_directory, 'model')
@@ -669,7 +698,7 @@ def model_config():
     """ Prompts user for model to use before prompting for hyperparameter settings """
     models  = ['logistic_regression', 'random_forest']
     options = {model : {'func' : _model} for model in models}
-    enum(options, 'choose a model')
+    enum(options, 'model-config', 'Select a model to configure')
 
 """ genolearn train """
 
@@ -693,8 +722,8 @@ def _train():
                 func = lambda model_config : train(meta, feature_selection, model_config)
                 info = detect_train(meta, feature_selection, model_config)
                 options[model_config] = {'func' : func, 'info' : info}
-            pre_text = f'select model config to use with "{meta}" metadata and "{feature_selection}" feature selection for train command'
-            enum(options, pre_text, back = lambda : _select_feature_selection(meta))
+            pre_text = f'Select a model config to use with "{meta}" metadata and "{feature_selection}" feature selection to train'
+            enum(options, 'train', pre_text, back = lambda : _select_feature_selection(meta))
         options = {}
         for file in listdir('feature-selection'):
             if file.endswith('.log'):
@@ -704,14 +733,14 @@ def _train():
                     options[selection] = {'func' : lambda selection : _select_model_config(meta, selection), 'info' : detect_train(meta, selection)}
         if len(options) == 0:
             return print(f'no feature selection found for metadata "{meta}"!\nexecute genolearn feature-selection with metadata "{meta}" first.')
-        enum(options, f'select feature selection to use with "{meta}" metadata for train command', back = _train)
+        enum(options, 'train', f'Select a feature selection file to use with "{meta}" metadata to train', back = _train)
     options = {meta : {'func' : _select_feature_selection, 'info' : detect_train(meta)} for meta in listdir('meta')}
-    enum(options, 'select metadata for train command')
+    enum(options, 'train', 'Select a metadata file to use to train')
 
 def train(meta, feature_selection, model_config):
     """ Given a preprocessed metadata file, trains model(s) and save outputs to the train subdirectory within the working directory """
     params = locals().copy()
-    print(f'train parameters for metadata file "{meta}" with feature-selection "{feature_selection}" and model config "{model_config}"')
+    print(f'{PRE}\n\nCommand: train\n\nTrain parameters for metadata "{meta}" with feature-selection "{feature_selection}" and model config "{model_config}"\n')
     default = feature_selection if feature_selection.startswith(meta) else f'{meta}-{feature_selection}'
     default = f'{default}-{model_config}'
     info    = dict(output_dir = dict(type = click.Path(), default = default),
@@ -767,7 +796,7 @@ def feature_importance(train_dir):
 
 def evaluate(train_dir):
     """  Given a training directory, evaluates a model on user prompted inputs and outputs to the evaluate subdirectory within the working directory """
-    print(f'evaluate parameters for "{train_dir}"')
+    print(f'{PRE}\n\nCommand: evaluate\n\nEvaluate parameters for "{train_dir}"\n')
 
     path = os.path.join(working_directory, 'train', train_dir)
     log  = read_log(os.path.join(path, 'train.log'))
@@ -824,8 +853,8 @@ def evaluate(train_dir):
 def menu():
     """ Main menu for GenoLearn """
 
-    _feature_importance = select_train_dir('select train_dir for feature-importance command', feature_importance, menu, detect_feature_importance)
-    _evaluate           = select_train_dir('select train_dir for evaluate command', evaluate, menu, detect_evaluate)
+    _feature_importance = select_train_dir('feature-importance', feature_importance, menu, detect_feature_importance)
+    _evaluate           = select_train_dir('evaluate', evaluate, menu, detect_evaluate)
 
     options             = {'print'              : {'info' : 'prints various GenoLearn generated files',
                                                    'func' : _print},
@@ -860,4 +889,6 @@ def menu():
     try:
         enum(options, '', k = k, back = exit)
     except KeyboardInterrupt:
+        print()
+    except click.exceptions.Abort:
         print()
