@@ -44,6 +44,19 @@ def check_working_directory():
                 return True
     return False
 
+PRE = \
+f"""
+Genolearn ({__version__}) Command Line Interface
+
+GenoLearn is designed to enable researchers to perform Machine Learning on their genome
+sequence data such as fsm-lite or unitig files.
+
+See https://genolearn.readthedocs.io for documentation.
+""".strip()
+
+if check_working_directory():
+    PRE = f'{PRE}\n\nWorking directory: {working_directory.replace(os.path.expanduser("~"), "~")}'
+
 def enum(options, pre = 'commands', post = 'user input', k = None, back = None):
     """
     Prints enumerated options to for user input, records the user input, then executes an associated function or returns the option key.
@@ -97,6 +110,7 @@ def enum(options, pre = 'commands', post = 'user input', k = None, back = None):
     c = max(max(len(option.get('prompt', name)) for name, option in options.items()) + 15, 30)
 
     # print the pre-text
+    pre = f'{PRE}\n\n{pre}' if pre else PRE
     print(pre, '\n')
 
     # print enumerated options
@@ -794,19 +808,6 @@ def evaluate(train_dir):
     evaluate(**params)
     append(f'evaluate ({train_dir} {os.path.basename(params["output"]).replace(".csv", "")})')
 
-pre_menu = \
-f"""
-Genolearn ({__version__}) Command Line Interface
-
-GenoLearn is designed to enable researchers to perform Machine Learning on their genome
-sequence data such as fsm-lite or unitig files.
-
-See https://genolearn.readthedocs.io for documentation.
-""".strip()
-
-if check_working_directory():
-    pre_menu = f'{pre_menu}\n\nWorking directory: {working_directory.replace(os.path.expanduser("~"), "~")}'
-
 def menu():
     """ Main menu for GenoLearn """
 
@@ -844,6 +845,6 @@ def menu():
                 k = i
                 break
     try:
-        enum(options, pre_menu, k = k, back = exit)
+        enum(options, '', k = k, back = exit)
     except KeyboardInterrupt:
         print()

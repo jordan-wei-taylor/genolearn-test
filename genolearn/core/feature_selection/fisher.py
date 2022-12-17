@@ -63,7 +63,7 @@ def post(i, value, *args, **kwargs):
     m1  = np.divide(s1, n, where = n > 0)
     m2  = np.divide(s2, n, where = n > 0)
 
-    # compute D and S as per www.genolearn.readthedocs.io/usage/feature-selection/index.html
+    # compute D and S as per www.genolearn.readthedocs.io/usage/feature-selection.html
     D   = np.square(m1 - mu)
     S   = m2 - np.square(m1)
 

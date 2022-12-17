@@ -1,31 +1,3 @@
-"""
-
-.. autoclass:: DataLoader
-
-.. rubric:: Methods
-   
-.. autosummary::
-
-    DataLoader.decode
-    DataLoader.encode
-    DataLoader.generator
-    DataLoader.load
-    DataLoader.load_X
-    DataLoader.load_Y
-    DataLoader.load_feature_selection
-    DataLoader.load_train_test
-    DataLoader.load_train_test_identifiers
-
-.. rubric:: Attributes
-
-.. autosummary::
-
-    DataLoader.decoder
-    DataLoader.encoder
-    DataLoader.features
-    DataLoader.identifiers
-
-"""
 from   genolearn import working_directory
 import os
 import json
@@ -225,10 +197,6 @@ class DataLoader():
     def generator(self, *identifiers, features = None, force_dense = False, force_sparse = False):
         """
         Iteratively yields an x, y pair from the method ``load``.
-        Yields
-        ------
-            x : load_X(identifiers, features = features, sparse = sparse)
-            y : load_Y(identifiers)
         """
         identifiers = self._check_identifiers(identifiers)
 
