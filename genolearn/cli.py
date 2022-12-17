@@ -395,7 +395,7 @@ def preprocess_combine(data):
     meta   = read_log(os.path.join('preprocess', 'preprocess.log'))
     params['max_features'] = meta['max_features']
 
-    params['data'] = os.path.join(working_directory, active['data_dir'], data)
+    params['data'] = os.path.join(working_directory, active['data_dir'], data).replace(os.path.expanduser('~'), '~')
 
     if params['max_features'] != None:
         params['verbose'] = params['max_features'] // 10
@@ -572,7 +572,7 @@ def feature_selection(meta, module):
     print(f'set parameter for feature selection using "{meta}" meta with "{os.path.basename(module)[:-3]}" method')
     py     = os.path.basename(module).replace('.py', '')
     params = dict(meta = meta, method = py, module = module.replace(os.path.expanduser('~'), '~'))
-    info   = dict(name = dict(default = f'{py}-{params["meta"]}', type = click.STRING))
+    info   = dict(name = dict(default = f'{params["meta"]}-{py}', type = click.STRING))
     
     params.update(prompt(info))
 
@@ -644,7 +644,7 @@ def train(meta, feature_selection):
     """ Given a preprocessed metadata file, trains model(s) and save outputs to the train subdirectory within the working directory """
     print(f'train parameters for metadata file "{meta}" with feature-selection "{feature_selection}"')
     model = listdir('model')
-    info  = dict(output_dir = dict(type = click.Path(), default = feature_selection if feature_selection.endswith(meta) else f'{meta}-{feature_selection}'),
+    info  = dict(output_dir = dict(type = click.Path(), default = feature_selection if feature_selection.startswith(meta) else f'{meta}-{feature_selection}'),
                  model_config = dict(type = click.Choice(model)),
                  num_features = dict(default = 1000, type = click.IntRange(1), multiple = True),
                  min_count = dict(default = 0, type = click.IntRange(0)),
@@ -703,7 +703,11 @@ def evaluate(train_dir):
 
     with open(os.path.join(working_directory, 'meta', meta)) as f:
         meta   = json.load(f)
-        groups = list(meta['group']) + ['unlabelled']
+        if set(meta['group']) == {'Train', 'Test'}:
+            groups = []
+        else:
+            groups = list(meta['group'])
+        groups += ['Train' ,'Test', 'unlabelled']
 
     info   = dict(output    = dict(prompt = 'output filename', type = click.Path()),
                   values    = dict(prompt = 'group values', type = click.Choice(groups), multiple = True))

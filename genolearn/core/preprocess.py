@@ -266,7 +266,7 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
         _open  = open
         decode = lambda line : line
 
-    with _open(data) as gz:
+    with _open(os.path.expanduser(data)) as gz:
        
         os.chdir(preprocess_dir)
         

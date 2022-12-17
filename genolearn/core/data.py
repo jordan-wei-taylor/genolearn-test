@@ -2,16 +2,17 @@ def _analyse(meta, min_count, proportion):
     
     import pandas as pd
 
-    count = pd.DataFrame(index = meta['targets'])
+    check   = set(meta['group']) != {'Train', 'Test'}
+    columns = list(meta['group']) + ['Train' ,'Test'] if check else ['Train' ,'Test']
+    count   = pd.DataFrame(index = meta['targets'], columns = columns, data = 0)
 
-    for group in meta['group']:
-        count[group] = 0
-        for identifier in meta['group'][group]:
-            target = meta['search'][identifier]
-            count.loc[target, group] += 1
+    if check:
+        for group in meta['group']:
+            for identifier in meta['group'][group]:
+                target = meta['search'][identifier]
+                count.loc[target, group] += 1
 
     for key in ['Train', 'Test']:
-        count[key] = 0
         for group in meta[key]:
             for identifier in meta['group'][group]:
                 count.loc[meta['search'][identifier], key] += 1

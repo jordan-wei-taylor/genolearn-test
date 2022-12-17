@@ -111,7 +111,7 @@ class DataLoader():
                         ret.append(identifier)
                     
             # check if it is a group and append entire associated identifiers
-            if identifier in self.meta['group']:
+            elif identifier in self.meta['group']:
                 ret += self.meta['group'][identifier]
             
             # check if it is Train / Test and append entire associated identifiers
