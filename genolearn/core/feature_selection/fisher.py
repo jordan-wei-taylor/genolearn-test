@@ -14,10 +14,10 @@ def init(dataloader):
     sg = np.zeros(dataloader.m)
 
     # class label sum
-    s1 = np.zeros((dataloader.c, dataloader.m))
+    s1 = np.zeros((dataloader.m, dataloader.c))
 
     # class label sum of squares
-    s2 = np.zeros((dataloader.c, dataloader.m))
+    s2 = np.zeros((dataloader.m, dataloader.c))
 
     args   = (encode, n, sg, s1, s2)  # encoder, counts, sum, by class sum, by class sum of squares
     kwargs = {}                       # no kwargs
@@ -31,19 +31,19 @@ def loop(i, x, label, value, *args, **kwargs):
 
     encode, n, sg, s1, s2 = args
         
-    y      = encode[label]
+    y        = encode[label]
 
     # increase count of label
-    n[y]  += 1
+    n[y]    += 1
 
     # increase global sum
-    sg    += x
+    sg      += x
 
     # increase class label sum
-    s1[y] += x
+    s1[:,y] += x
 
     # increase class label sum of squares
-    s2[y] += x ** 2
+    s2[:,y] += x ** 2
 
 def post(i, value, *args, **kwargs):
     """
@@ -53,9 +53,6 @@ def post(i, value, *args, **kwargs):
     
     encode, n, sg, s1, s2 = args
 
-    # reshape for broadcasting
-    n   = n.reshape(-1, 1)
-
     # convert global sum to global mean
     mu  = sg / n.sum()
 
@@ -64,11 +61,8 @@ def post(i, value, *args, **kwargs):
     m2  = np.divide(s2, n, where = n > 0)
 
     # compute D and S as per www.genolearn.readthedocs.io/usage/feature-selection.html
-    D   = np.square(m1 - mu).T
-    S   = (m2 - np.square(m1)).T
-
-    # reshape from 2D back to 1D
-    n   = n.reshape(-1)
+    D   = np.square(m1 - mu.reshape(-1, 1)) # broadcast second dimension ((m, c) - (m, 1))
+    S   = (m2 - np.square(m1))
 
     # numerator and denominator expressions for Fisher Score
     num = D @ n
