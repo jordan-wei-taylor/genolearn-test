@@ -90,6 +90,14 @@ Unstable Development Install
 .. toctree::
     :hidden:
     :titlesonly:
+    :caption: Background
+
+    Fisher Score <background/fisher-score>
+    Metrics <background/metrics>
+
+.. toctree::
+    :hidden:
+    :titlesonly:
     :caption: Usage
 
     Overview <usage/overview>
