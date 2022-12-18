@@ -184,7 +184,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
                     functions.append(to_dense)
                     os.mkdir('dense')
            
-            with Waiting('converting', 'converted', 'to numpy arrays'):
+            with Waiting('converting', 'converted', 'to arrays'):
                 with Pool(n_processes) as pool:
                     pool.map(convert, list(files))
 
@@ -360,7 +360,7 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
                 if 'dense' in os.listdir():
                     functions.append(to_dense)
 
-            with Waiting('converting', 'converted', 'to numpy arrays'):
+            with Waiting('converting', 'converted', 'to arrays'):
                 with Pool(n_processes) as pool:
                     pool.map(convert, list(files))
 

@@ -715,34 +715,29 @@ def detect_train(meta, feature_selection = None, model_config = None):
     return f'({", ".join(ret)})' if ret else ''
 
 def _train():
-    def _select_feature_selection(meta):
-        def _select_model_config(meta, feature_selection):
-            options = {}
-            for model_config in listdir('model'):
-                func = lambda model_config : train(meta, feature_selection, model_config)
-                info = detect_train(meta, feature_selection, model_config)
-                options[model_config] = {'func' : func, 'info' : info}
-            pre_text = f'Select a model config to use with "{meta}" metadata and "{feature_selection}" feature selection to train'
-            enum(options, 'train', pre_text, back = lambda : _select_feature_selection(meta))
+    def _select_model_config(meta_feature_selection):
+        meta, feature_selection = meta_feature_selection
         options = {}
-        for file in listdir('feature-selection'):
-            if file.endswith('.log'):
-                log = read_log(os.path.join('feature-selection', file))
-                if log['meta'] == meta:
-                    selection = file.replace('.log', '')
-                    options[selection] = {'func' : lambda selection : _select_model_config(meta, selection), 'info' : detect_train(meta, selection)}
-        if len(options) == 0:
-            return print(f'no feature selection found for metadata "{meta}"!\nexecute genolearn feature-selection with metadata "{meta}" first.')
-        enum(options, 'train', f'Select a feature selection file to use with "{meta}" metadata to train', back = _train)
-    options = {meta : {'func' : _select_feature_selection, 'info' : detect_train(meta)} for meta in listdir('meta')}
-    enum(options, 'train', 'Select a metadata file to use to train')
+        for model_config in listdir('model'):
+            func = lambda model_config : train(meta, feature_selection, model_config)
+            info = detect_train(meta, feature_selection, model_config)
+            options[model_config] = {'func' : func, 'info' : info}
+        pre_text = f'Select a model config to use with "{meta}" metadata and "{feature_selection}" feature selection to train'
+        enum(options, 'train', pre_text, back = _train)
+    options = {}
+    for selection in listdir('feature-selection'):
+        if selection.endswith('.log'):
+            log  = read_log(os.path.join('feature-selection', selection))
+            meta = log['meta']
+            selection = selection.replace('.log', '')
+            options[(meta, selection)] = {'prompt' : selection, 'info' : f'("{meta}" metadata)', 'func' : _select_model_config}
+    enum(options, 'train', 'Select a feature selection file to use to train')
 
 def train(meta, feature_selection, model_config):
     """ Given a preprocessed metadata file, trains model(s) and save outputs to the train subdirectory within the working directory """
     params = locals().copy()
     print(f'{PRE}\n\nCommand: train\n\nTrain parameters for metadata "{meta}" with feature-selection "{feature_selection}" and model config "{model_config}"\n')
-    default = feature_selection if feature_selection.startswith(meta) else f'{meta}-{feature_selection}'
-    default = f'{default}-{model_config}'
+    default = f'{feature_selection}-{model_config}'
     info    = dict(output_dir = dict(type = click.Path(), default = default),
                    num_features = dict(default = 1000, type = click.IntRange(1), multiple = True),
                    min_count = dict(default = 0, type = click.IntRange(0)),

@@ -62,7 +62,6 @@ def feature_selection(name, meta, method, module, log):
         assert name in variables
         
     params       = {func : variables.get(func) for func in funcs + extra}
-
     scores       = base_feature_selection(method, dataloader, **params)
 
     with Writing(save_path, inline = True):
