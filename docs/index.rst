@@ -47,9 +47,8 @@ Windows
 Latest Unstable Development Install
 
 .. code-block:: sh
-
-    git clone -b dev https://github.com/jordan-wei-taylor/genolearn.git
-    pip install -e ./genolearn
+    
+    pip install -e git+https://github.com/jordan-wei-taylor/genolearn.git@dev#egg=genolearn
 
 
 Conda

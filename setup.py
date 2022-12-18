@@ -24,7 +24,7 @@ setup(
     install_requires = [
         'click>=8.1.3',        # cli
         'numpy>=1.22.3',       # core
-        'pandas>=1.4.2'        # core
+        'pandas>=1.4.2',       # core
         'pathos>=0.3.0',       # parallelisation
         'psutil>=5.9.0',       # logging RAM
         'scikit-learn>=1.1.2', # core
