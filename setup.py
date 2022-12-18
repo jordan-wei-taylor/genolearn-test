@@ -4,10 +4,6 @@ from pathlib    import Path
 
 url = "https://github.com/jordan-wei-taylor/genolearn"
 
-def read(path):
-    with open(path, encoding = 'utf-8') as f:
-        return f.read()
-
 setup(
     name             = "genolearn",
     version          = __version__,
