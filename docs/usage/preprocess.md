@@ -1,111 +1,139 @@
 GenoLearn Preprocess
 ####################
 
-.. code-block:: bash
+Users first need to ``preprocess`` both their ``sequence`` and ``meta`` data to use later commands in GenoLearn. Upon executing
 
-    genolearn preprocess COMMAND
+.. code-block:: text
 
-preprocess your data into a more efficient format.
+    genolearn
 
-Commands
-========
+and selecting the ``preprocess`` option number, the user will be prompted to select a ``preprocess`` command.
+
+.. code-block:: text
+
+    Genolearn ({VERSION}) Command Line Interface
+
+    GenoLearn is designed to enable researchers to perform Machine Learning on their genome
+    sequence data such as fsm-lite or unitig files.
+
+    See https://genolearn.readthedocs.io for documentation.
+
+    Working directory: {WOKRING_DIRECTORY}
+
+    Command: preprocess
+
+    Select a preprocess subcommand
+
+    1.  back                            goes to the previous command
+
+    2.  sequence                        preprocesses sequence data
+    3.  combine                         preprocesses sequence data and combines to previous preprocessing
+    4.  meta                            preprocesses meta data
+
+with ``combine`` and ``meta`` commands available upon having executed ``sequence``.
 
 Sequence
---------
+========
 
-.. code-block:: bash
+The user is asked to enter the **option number** for which ``.gz`` file to preprocess within their ``data directory``. 
 
-    genolearn preprocess sequence [OPTIONS]
+The user is prompted for parameters
 
-
-preprocess a gunzip (gz) compressed text file.
-
-The text file should containing genome sequence data of the following sparse format
-
-
-    .. code-block:: bash
-
-        sequence_1 | identifier_{1,1}:count_{1,1} identifier_{1,1}:count_{2,1} …
-        sequence_2 | identifier_{2,1}:count_{2,1} identifier_{2,1}:count_{2,2} …
-        …
-
-into a directory of .npz files, a list of all the features, and some meta information containing number of identifiers, sequences, and non-zero counts.
-
-It is expected that the parameter data is in the data_dir directory set in the active config file. See https://genolearn.readthedocs.io/usage/config for more details.
-
-.. rubric:: Options
 .. code-block:: text
 
-    --max-features [None] : if defined, only preprocesses the first ``max-features`` rows of the input ``data``. 
+    batch_size [None]  : 
+    n_processes [None] : 
+    sparse [True]      : 
+    dense [True]       : 
+    verbose [250000]   : 
+    max_features [None]:
 
+where
 
-.. rubric:: Prompted Information
++ ``batch_size`` determines how many concurrent identifiers to preprocess per run of the ``.gz`` file. By default, GenoLearn arbitrarily sets this to the minimum of your OS limit (RLIMIT_NOFILE) and :math:`2^14`.
++ ``n_processes`` determines how many processes to run when converting temp ``txt`` files to ``numpy`` arrays. By default, GenoLearn sets this to the number of physical CPU cores.
++ ``sparse`` flag indicates if the preprocessing should output sparse arrays.
++ ``dense`` flag indicates if the preprocessing should output dense arrays.
++ ``verbose`` determines the number of sequences to cycle through before printing a new line.
++ ``max_features`` determines the number of first number of sequences to preprocess. Mainly used for debugging purposes. Users should always leave this as the default ``None``.
+
+Upon a successful execution, within the ``working directory`` is a ``preprocess`` subdirectory with the following tree
+
 .. code-block:: text
 
-    data        : input genome sequence file (gunzipped)
-    batch-size  : number of concurrent observations to preprocess at the same time
-    n-processes : number of parallel processes
-    sparse      : sparse output
-    dense       : dense output
-    verbose     : integer denoting number of features between each verbose update
+    preprocess
+    ├── dense   [{identifier}.npz files]
+    ├── features.txt.gz
+    ├── info.json
+    ├── meta.json
+    ├── preprocess.log
+    └── sparse  [{identifier}.npz files]
+
+.. note::
+
+    Whilst the ``preprocess sequence`` command is being executed, it will print two numbers. The first is the number of unique identifiers found so far, and the second is the number of sequences the program has cycled over for preprocessing.
 
 Combine
---------
+=======
 
-.. code-block:: bash
+This command is only available once the user has executed the ``preprocess sequence`` command. The user is asked to enter the **option number** for which ``.gz`` file to preprocess within their ``data directory``. The user cannot select the same file used during the original ``preprocess sequence``. If this is not the first time ``preprocess combine`` is being executed, the user also cannot select any file used in previous runs of ``preprocess combine``. 
 
-    genolearn preprocess combine
+The user is prompted for parameters
 
-
-combines the preprocess of a gunzip (gz) compressed text file to an existing preprocessed directory.
-    
-The text file should containing genome sequence data of the following sparse format
-
-    .. code-block:: text
-
-        sequence_1 | identifier_{1,1}:count_{1,1} identifier_{1,1}:count_{2,1} ...
-        sequence_2 | identifier_{2,1}:count_{2,1} identifier_{2,1}:count_{2,2} ...
-        ...
-
-
-and combines the preprocessed data with the `preprocess_dir` directory set in the \033[1mactive config\033[0m file.
-This relies on the user to have previously executed `genolearn preprocess sequence`.
-
-See https://genolearn.readthedocs.io/tutorial/ for example use case.
-
-.. rubric:: Options
 .. code-block:: text
 
-    --max-features [None] : if defined, only preprocesses the first ``max-features`` rows of the input ``data``. 
+    batch_size [None]  : 
+    n_processes [None] : 
+    verbose [250000]   : 
 
+where the other parameters mentioned in ``preprocess sequence`` are automatically set according to the previous run of ``preprocess sequence``. Upon a successful execution, within the ``working directory`` the ``preprocess`` subdirectory now has the following tree
 
-.. rubric:: Prompted Information
 .. code-block:: text
+    :emphasize-lines: 2, 3, 8
 
-    data        : input genome sequence file (gunzipped)
-    batch-size  : number of concurrent observations to preprocess at the same time
-    n-processes : number of parallel processes
-    verbose     : integer denoting number of features between each verbose update
-    n-features  : number of features to preprocess (set to -1 to preprocess all)
-
+    preprocess
+    ├── combine.log
+    ├── dense   [more {identifier}.npz files]
+    ├── features.txt.gz
+    ├── info.json
+    ├── meta.json
+    ├── preprocess.log
+    └── sparse  [more {identifier}.npz files]
 
 Meta
-----
+====
 
-.. code-block:: bash
+This command is only available once the user has executed the ``preprocess sequence`` command. This command defines the *train* and *test* datasets for later modelling purposes.
 
-    genolearn preprocess meta
+The user is prompted for parameters
 
-Preprocesses the metadata and defines the train / test split for the later ``genolearn train`` execution.
-
-.. rubric:: Prompted Information
 .. code-block:: text
 
-    output             : filename of preprocessed metadata
-    identifier         : identifier column in input metadata
-    target             : target column in input metadata
-    group              : group column in input metadata
-    train_group_values : group values to assign as training data [if group  = None]
-    test_group_values  : group values to assign as testing data  [if group  = None]
-    proportion train   : proportion of data to assign as train   [if group != None]
+    output        [default]:
+    identifier             :
+    target                 :
+    group            [None]:
+    proportion train [0.75]:
+
+if the user selects ``None`` as the ``group`` value or 
+
+    output        [default]:  
+    identifier             :
+    target                 :
+    group            [None]:
+    train group values*    :
+    test  group values*    :
+
+if the user enters a column present in their metadata csv where
+
++ ``output`` is the output filename storing the collected information from the user.
++ ``identifier`` is a column within the metadata csv containing the unique identifiers.
++ ``target`` is a column within the metadata csv containing the target metadata labels.
++ ``group`` is either a column within the metadata csv that helps the user split the data into *train* and *test* datasets or left as ``None``
++ ``proportion train`` is only available if ``group`` is ``None`` and is a sensible proportion value to randomly assign as *train* with the rest as *test*.
++ ``train group values*`` is only available if ``group`` is not ``None`` and contains a comma seperated string indicating which group values belong to *train*.
++ ``test  group values*`` is only available if ``group`` is not ``None`` and contains a comma seperated string indicating which group values belong to *test*. Note that these values cannot overlap with ``train group values*``.
+
+Upon a successful execution of this command, within the ``working directory`` is a ``meta`` subdirectory with an additional entry of ``output``.
+  
 

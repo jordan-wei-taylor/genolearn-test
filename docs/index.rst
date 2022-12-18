@@ -86,57 +86,22 @@ Unstable Development Install
     Installation <self>
     tutorial
     glossary
-
-.. .. toctree::
-..     :hidden:
-..     :titlesonly:
-..     :caption: Usage
-
-..     usage/preprocess
-..     usage/feature-selection
-..     usage/train
-..     usage/evaluate
-
-.. .. toctree::
-..     :hidden:
-..     :titlesonly:
-..     :caption: Background
-
-..     background/overview
-..     background/preprocessing
-
-.. .. toctree::
-..     :hidden:
-
-..     background/feature-selection/index
-
-.. .. toctree::
-..     :hidden:
-
-..     background/data-loader
-..     background/metrics
-..     background/models
-    
-.. .. toctree::
-..     :hidden:
-
-..     implementation/feature-importance/index
     
 .. toctree::
     :hidden:
     :titlesonly:
     :caption: Usage
 
-    commands <usage/commands>
-
-    
-    
-
-.. .. toctree::
-..     :hidden:
-..     :caption: Python Documentation
-
-..     genolearn/index
+    Overview <usage/overview>
+    Setup <usage/setup>
+    Clean <usage/clean>
+    Print <usage/print>
+    Preprocess <usage/preprocess>
+    Feature Selection <usage/feature-selection>
+    Model Config <usage/model-config>
+    Train <usage/train>
+    Feature Importance <usage/feature-importance>
+    Evaluate <usage/evaluate>
 
 .. toctree::
     :hidden:

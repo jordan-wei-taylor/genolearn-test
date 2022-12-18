@@ -75,20 +75,10 @@ html_theme_options = {
     'style_nav_header_background' : "#fcfcfc"
 }
 
-# 
-
-# 
 html_show_sourcelink = False
 html_use_index = True
-mathjax_config = {
-    'TeX': {'equationNumbers': {'autoNumber': 'AMS', 'useLabelIds': True}},
-}
 
 html_static_path = ['_static']
-
-# html_css_files = [
-#     'css/custom.css',
-# ]
 
 html_js_files = [
     'js/custom.js'
@@ -103,4 +93,3 @@ html_favicon = 'favicon.png'
 
 pngmath_latex_preamble=r'\usepackage[active]{preview}' # + other custom stuff for inline math, such as non-default math fonts etc.
 pngmath_use_preview=True
-

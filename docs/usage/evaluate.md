@@ -1,16 +1,14 @@
 GenoLearn Evaluate
 ##################
 
-.. code-block:: bash
+Users may wish to ``evaluate`` their trained model on a different part of their dataset. Suppose the user would like to ``evaluate`` their model on data points that have not been labelled in the ``metadata`` csv. Upon executing the ``evaluate`` command, the user is prompted to select a ``train`` subdirectory and then is prompted for
 
-    genolearn evaluate
-
-
-Evaluates a model on a defined test dataset.
-
-.. rubric:: Prompted Information
 .. code-block:: text
 
-    train_dir : a subdirectory within <working-dir>/train containing the model of interest to evaluate
-    output    : output subdirectory name within <working-dir>/evaluate/<train_dir>
-    values    : group value(s) to identify which observations should be part of the dataset for evaluation
+    output filename :
+    group values*   :
+
+where
+
++ ``output filename`` is, as the name suggests, the output filename such that ``<output filename>.csv`` and ``<output filename>.npz`` will be generated within a subdirectory ``evaluate`` within their chosen ``train`` subdirectory.
++ ``group values*`` is a comma seperated string of group values (valid group values will be shown). Only data points corresponding to the ``group values*`` will be evaluated in the output files.
