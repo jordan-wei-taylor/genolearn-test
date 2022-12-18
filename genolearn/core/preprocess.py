@@ -25,7 +25,7 @@ def init(file, subpath = 'temp', ext = 'txt'):
 def add(object, i, count):
     object.write(f'{i} {count}\n')
     
-def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max_features, verbose):
+def preprocess(preprocess_dir, data, batch_size, n_processes, max_features, verbose):
     """
     Preprocess a gunzip (gz) compressed text file containing genome sequence data of the following sparse format
 
@@ -48,7 +48,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
     >>> genolearn preprocess file.gz --batch-size 128
     """
 
-    from   genolearn.logger       import msg, Waiting, print_dict
+    from   genolearn.logger       import msg, Waiting
     from   genolearn              import utils
 
     from   pathos.multiprocessing import cpu_count, Pool
@@ -98,6 +98,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
             shutil.rmtree('temp')
 
         os.mkdir('temp')
+        os.mkdir('array')
 
         files = {}
 
@@ -155,34 +156,16 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, sparse, dense, max
 
                 f = init('info', None, 'json')
                 json.dump({'n' : len(unique), 'm' : m, 'max' : hi}, f)
-                f.close()
-               
-                def to_sparse(npz, c, d):
-                    np.savez_compressed(os.path.join('sparse', npz), col = c.astype(c_dtype), data = d.astype(d_dtype))
-
-                def to_dense(npz, c, d):
-                    arr = np.zeros(m, dtype = d.dtype)
-                    arr[c] = d
-                    np.savez_compressed(os.path.join('dense', npz), arr = arr)
+                f.close()                    
                
                 def convert(file):
-                    txt  = os.path.join('temp', f'{file}.txt')
-                    npz  = f'{file}.npz'
-                    c, d = np.loadtxt(txt, dtype = c_dtype).T
-
-                    for function in functions:
-                        function(npz, c, d)
-
+                    txt    = os.path.join('temp', f'{file}.txt')
+                    npz    = f'{file}.npz'
+                    c, d   = np.loadtxt(txt, dtype = c_dtype).T
+                    arr    = np.zeros(m, dtype = d.dtype)
+                    arr[c] = d
+                    np.savez_compressed(os.path.join('array', npz), arr = arr)
                     os.remove(txt)
-
-                functions = []
-                if sparse:
-                    functions.append(to_sparse)
-                    os.mkdir('sparse')
-
-                if dense:
-                    functions.append(to_dense)
-                    os.mkdir('dense')
            
             with Waiting('converting', 'converted', 'to arrays'):
                 with Pool(n_processes) as pool:
@@ -272,10 +255,11 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
         
         if 'temp' in os.listdir():
             shutil.rmtree('temp')
+
         os.mkdir('temp')
         
         files      = {}
-        exceptions = set([file.replace('.npz', '') for file in os.listdir('dense' if 'dense' in os.listdir() else 'sparse')])
+        exceptions = set([file.replace('.npz', '') for file in os.listdir('array')])
         while True:
            
             gz.seek(0)
@@ -333,32 +317,18 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
                 json.dump({'n' : n, 'm' : m, 'max' : hi}, f)
                 f.close()
                 
-                feature_overlap = np.nonzero(np.isin(features, feature_set, assume_unique = True))[0]
-
-                def to_sparse(npz, c, d):
-                    np.savez_compressed(os.path.join('sparse', npz), col = c.astype(c_dtype), data = d.astype(d_dtype))
-
-                def to_dense(npz, c, d):
-                    arr = np.zeros(m, dtype = d.dtype)
-                    arr[c] = d
-                    np.savez_compressed(os.path.join('dense', npz), arr = arr)
+                feature_overlap = np.nonzero(np.isin(features, feature_set, assume_unique = True))[0]                    
                
                 def convert(file):
-                    txt  = os.path.join('temp', f'{file}.txt')
-                    npz  = f'{file}.npz'
-                    c, d = np.loadtxt(txt, dtype = c_dtype).T
-                    mask = np.nonzero(np.isin(c, feature_overlap, assume_unique = True))[0]
-                    for function in functions:
-                        function(npz, c[mask], d[mask])
-
+                    txt    = os.path.join('temp', f'{file}.txt')
+                    npz    = f'{file}.npz'
+                    c, d   = np.loadtxt(txt, dtype = c_dtype).T
+                    mask   = np.nonzero(np.isin(c, feature_overlap, assume_unique = True))[0]
+                    c, d   = c[mask], d[mask]
+                    arr    = np.zeros(m, dtype = d.dtype)
+                    arr[c] = d
+                    np.savez_compressed(os.path.join('array', npz), arr = arr)
                     os.remove(txt)
-
-                functions = []
-                if 'sparse' in os.listdir():
-                    functions.append(to_sparse)
-
-                if 'dense' in os.listdir():
-                    functions.append(to_dense)
 
             with Waiting('converting', 'converted', 'to arrays'):
                 with Pool(n_processes) as pool:
@@ -385,15 +355,11 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
 
 def preprocess_meta(output, meta_path, identifier_column, target_column, group_column, train_values, test_values, ptrain):
 
-    from   genolearn import get_active
-
     import pandas as pd
     import json
 
-    active   = get_active()
-
     pdir     = 'preprocess'
-    file_dir = os.path.join(pdir, 'sparse' if 'sparse' in os.listdir(pdir) else 'dense')
+    file_dir = os.path.join(pdir, 'array')
     files    = [file.replace('.npz', '') for file in os.listdir(file_dir)]
     meta_df  = pd.read_csv(meta_path).applymap(str)
     meta_df[identifier_column] = meta_df[identifier_column].apply(clean_sample)

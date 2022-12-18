@@ -23,15 +23,6 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
     warnings.simplefilter("ignore")
     os.environ["PYTHONWARNINGS"] = "ignore"
 
-
-    # data_config, model_config = map(check_config, (data_config, model_config))
-
-    # with open(model_config) as f:
-    #     model_config = json.load(model_config)
-
-
-    # print_dict('executing "train.py" with parameters', params)
-
     with open(os.path.join('model', model_config)) as file:
         model_config = json.load(file)
         model        = model_config.pop('model')
@@ -45,10 +36,10 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
         test       = dataloader.load_train_test_identifiers(min_count, target_subset)[1]
         mask       = np.ones(dataloader.m, dtype = bool)
         n          = len(test)
-        for i, identifier in enumerate(test):
-            msg('')
-            arr = dataloader.load_X(identifier, features = mask, force_dense = True)
-            mask[mask] = arr == 0
+        for i, identifier in enumerate(test, 1):
+            msg(f'{i} of {n:,d}', inline = True)
+            arr = dataloader.load_X(identifier, features = mask)
+            mask[mask] = arr.flatten() == 0
             if (~mask).all():
                 break
 

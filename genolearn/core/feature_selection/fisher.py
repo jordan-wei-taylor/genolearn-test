@@ -71,6 +71,3 @@ def post(i, value, *args, **kwargs):
     S   = np.divide(num, den, where = den > 0)
 
     return -S # return negative scores such that argsort returns largest to smallest
-
-# computations above require each "x" to be a numpy array and not a scipy sparse array
-force_dense = True

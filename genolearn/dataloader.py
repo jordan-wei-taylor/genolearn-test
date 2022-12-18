@@ -40,10 +40,9 @@ class DataLoader():
         if meta_file not in valid:
             raise Exception(f'"{meta_file}" not found in "{path}" - expect one of' + '\n  •'.join([''] + valid))
 
-        self.dense          = os.path.exists(os.path.join(working_dir, 'preprocess', 'dense'))
         self.working_dir    = working_dir
         self.preprocess_dir = os.path.join(working_dir, 'preprocess')
-        self.data_dir       = os.path.join(self.preprocess_dir, 'dense' if self.dense else 'sparse')
+        self.data_dir       = os.path.join(self.preprocess_dir, 'array')
         
         with open(os.path.join(working_dir, 'meta', meta_file)) as f:
             self.meta = json.load(f)
@@ -55,20 +54,12 @@ class DataLoader():
 
     def _load_X(self, identifier, features, dtype):
 
-        npz = os.path.join(self.data_dir, f'{identifier}.npz')
+        npz  = os.path.join(self.data_dir, f'{identifier}.npz')
 
-        if self.dense:
-            arr,     = np.load(npz).values()
-        else:
-            col, val = np.load(npz).values()
-            arr      = scipy.sparse.csr_matrix((1, self.m), dtype = val.dtype)
-            arr[col] = val
+        arr, = np.load(npz).values()
 
         if features is not None:
-            if self.dense:
-                arr = arr[features]
-            else:
-                arr = arr[:,features]
+            arr = arr[features]
         
         return arr.astype(dtype) if dtype else arr
 
@@ -102,7 +93,7 @@ class DataLoader():
 
         return ret
 
-    def load_X(self, *identifiers, features = None, dtype = np.uint16, force_dense = False):
+    def load_X(self, *identifiers, features = None, dtype = None):
         r"""
         loads all observations with associated ``identifiers``. If ``features`` is provided, loads only
         those feature values. If ``dtype`` is provided, tries to convert the ``dtype`` provided.
@@ -114,15 +105,11 @@ class DataLoader():
                 was provided, then, :math:`X\in\mathbb{Z}^{n,m}`. 
         """
         identifiers = self._check_identifiers(identifiers)
-        m           = self.m if features is None else len(features)
-        if self.dense:
-            X = np.zeros((len(identifiers), m), dtype = dtype)
-            for i, identifier in enumerate(identifiers):
-                X[i] = self._load_X(identifier, features)
-        else:
-            X = scipy.sparse.vstack([self._load_X(identifier, features) for identifier in identifiers], dtype = dtype)
-            if force_dense:
-                X = X.A
+        features    = np.array(features)
+        m           = self.m if features is None else features.sum() if features.dtype == np.bool_ else len(features)
+        X           = np.zeros((len(identifiers), m), dtype = dtype)
+        for i, identifier in enumerate(identifiers):
+            X[i] = self._load_X(identifier, features, dtype)
         return X
 
     def load_Y(self, *identifiers):
@@ -164,7 +151,7 @@ class DataLoader():
 
         return identifiers_train, identifiers_test
 
-    def load_train_test(self, features = None, min_count = 0, target_subset = None, dtype = np.uint16):
+    def load_train_test(self, features = None, min_count = 0, target_subset = None, dtype = None):
         """
         using the method ``load_train_test_identifiers`` returns train and test data for supervised learning.
         Returns
@@ -201,18 +188,11 @@ class DataLoader():
         ret, = np.load(os.path.join(self.working_dir, 'feature-selection', file), allow_pickle = True).values()
         return ret
 
-    def generator(self, *identifiers, features = None, force_dense = False, force_sparse = False):
+    def generator(self, *identifiers, features = None, dtype = None):
         """
         Iteratively yields an x, y pair from the method ``load``.
         """
         identifiers = self._check_identifiers(identifiers)
 
         for identifier in identifiers:
-            X, Y = self._load_X(identifier, features), self.load_Y(identifier)[0]
-            if force_sparse:
-                if isinstance(X, np.ndarray):
-                    X = scipy.sparse.csr_matrix(X.reshape(1, -1))
-            if force_dense:
-                if not isinstance(X, np.ndarray):
-                    X = X.A.flatten()
-            yield X, Y
+            yield self._load_X(identifier, features, dtype), self.load_Y(identifier)[0]

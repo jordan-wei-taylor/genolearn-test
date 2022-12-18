@@ -43,8 +43,6 @@ The user is prompted for parameters
 
     batch_size [None]  : 
     n_processes [None] : 
-    sparse [True]      : 
-    dense [True]       : 
     verbose [250000]   : 
     max_features [None]:
 
@@ -52,8 +50,6 @@ where
 
 + ``batch_size`` determines how many concurrent identifiers to preprocess per run of the ``.gz`` file. By default, GenoLearn arbitrarily sets this to the minimum of your OS limit (RLIMIT_NOFILE) and :math:`2^14`.
 + ``n_processes`` determines how many processes to run when converting temp ``txt`` files to ``numpy`` arrays. By default, GenoLearn sets this to the number of physical CPU cores.
-+ ``sparse`` flag indicates if the preprocessing should output sparse arrays.
-+ ``dense`` flag indicates if the preprocessing should output dense arrays.
 + ``verbose`` determines the number of sequences to cycle through before printing a new line.
 + ``max_features`` determines the number of first number of sequences to preprocess. Mainly used for debugging purposes. Users should always leave this as the default ``None``.
 
@@ -62,12 +58,11 @@ Upon a successful execution, within the ``working directory`` is a ``preprocess`
 .. code-block:: text
 
     preprocess
-    ├── dense   [{identifier}.npz files]
+    ├── array  [{identifier}.npz files]
     ├── features.txt.gz
     ├── info.json
     ├── meta.json
-    ├── preprocess.log
-    └── sparse  [{identifier}.npz files]
+    └── preprocess.log
 
 .. note::
 
@@ -89,16 +84,15 @@ The user is prompted for parameters
 where the other parameters mentioned in ``preprocess sequence`` are automatically set according to the previous run of ``preprocess sequence``. Upon a successful execution, within the ``working directory`` the ``preprocess`` subdirectory now has the following tree
 
 .. code-block:: text
-    :emphasize-lines: 2, 3, 8
+    :emphasize-lines: 2, 3
 
     preprocess
+    ├── array   [more {identifier}.npz files]
     ├── combine.log
-    ├── dense   [more {identifier}.npz files]
     ├── features.txt.gz
     ├── info.json
     ├── meta.json
-    ├── preprocess.log
-    └── sparse  [more {identifier}.npz files]
+    └── preprocess.log
 
 Meta
 ====

@@ -435,34 +435,32 @@ def preprocess_sequence_data():
     for gz in gzs:
         info = ''
         if 'preprocess' in listdir():
-            log = read_log(os.path.join('preprocess', 'preprocess.log'))
-            if os.path.basename(log['data']) == gz:
-                info = '(already preprocessed)'
-            if 'combine.log' in listdir('preprocess'):
-                log = read_log(os.path.join('preprocess', 'combine.log'))
-                if isinstance(log['data'], str):
-                    data = [os.path.basename(log['data'])]
-                else:
-                    data = [os.path.basename(data) for data in log['data']]
-                if gz in data:
-                    info = '(already combined)'
+            path = os.path.join(working_directory, 'preprocess', 'preprocess.log')
+            if os.path.exists(path):
+                log = read_log(path)
+                if os.path.basename(log['data']) == gz:
+                    info = '(already preprocessed)'
+                if 'combine.log' in listdir('preprocess'):
+                    log = read_log(os.path.join('preprocess', 'combine.log'))
+                    if isinstance(log['data'], str):
+                        data = [os.path.basename(log['data'])]
+                    else:
+                        data = [os.path.basename(data) for data in log['data']]
+                    if gz in data:
+                        info = '(already combined)'
         options[gz] = {'func' : preprocess_sequence, 'info' : info}
     enum(options, 'preprocess sequence', 'Select option to preprocess', back = preprocess)
 
 def preprocess_sequence(data):
     """ Preprocesses sequential data """
-    print(f'{PRE}\n\nparameters for "{data}" to preprocess\n')
+    print(f'{PRE}\n\nCommand: preprocess sequence\n\nParameters for "{data}" to preprocess\n')
     info   = dict(batch_size = dict(type = click.INT, default = None),
                   n_processes = dict(type = click.INT, default = None),
-                  sparse = dict(type = click.BOOL, default = True),
-                  dense = dict(type = click.BOOL, default = True),
                   verbose = dict(type = click.IntRange(1), default = 250000),
                   max_features = dict(type = click.IntRange(-1), default = None))
 
     params = dict(data = data)
     params.update(prompt(info))
-
-    assert params['dense'] or params['sparse'], 'set either / both dense and sparse to True'
 
     params['data']         = os.path.join(working_directory, active['data_dir'], data).replace(os.path.expanduser('~'), '~')
 
@@ -508,7 +506,7 @@ def preprocess_combine_data():
 
 def preprocess_combine(data):
     """ Preprocess sequential data and combine with already preprocessed data """
-    print(f'preprocess {data}')
+    print(f'{PRE}\n\nCommand: preprocess combine\n\nParameters for "{data}" to preprocess and combine')
     info = dict(batch_size   = dict(type = click.INT, default = None),
                 n_processes  = dict(type = click.INT, default = None),
                 verbose      = dict(type = click.INT, default = 250000))
@@ -715,9 +713,11 @@ def detect_train(meta, feature_selection = None, model_config = None):
     target = (meta, feature_selection, model_config)[:num]
     if 'train' in ls:
         for train_dir in listdir('train'):
-            log = read_log(os.path.join('train', train_dir, 'train.log'))
-            if (log['meta'], log['feature_selection'], log['model_config'])[:num] == target:
-                ret.append(train_dir)
+            path = os.path.join(working_directory, 'train', train_dir, 'train.log')
+            if os.path.exists(path):
+                log = read_log(path)
+                if (log['meta'], log['feature_selection'], log['model_config'])[:num] == target:
+                    ret.append(train_dir)
     return f'({", ".join(ret)})' if ret else ''
 
 def _train():

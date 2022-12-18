@@ -5,7 +5,7 @@ genolearn doc
 
 import os
 
-__version__ = '0.0.9'
+__version__ = '0.0.9dev'
 
 ls = os.listdir()
 wd = True if '.genolearn' in ls else False
