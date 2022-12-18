@@ -9,7 +9,7 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
     from genolearn.models.classification import get_model
     from genolearn.models                import grid_predictions
     from genolearn.dataloader            import DataLoader
-    from genolearn.logger                import msg, Writing
+    from genolearn.logger                import msg, Writing, Computing
 
     import warnings
     import numpy as np
@@ -40,7 +40,19 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
     common     = {key : val for key, val in model_config.items() if key not in kwargs}
 
     dataloader = DataLoader(meta)
-    selection  = dataloader.load_feature_selection(feature_selection).argsort()
+
+    with Computing('common features between the train and test datasets', delete = 2):
+        test       = dataloader.load_train_test_identifiers(min_count, target_subset)[1]
+        mask       = np.ones(dataloader.m, dtype = bool)
+        n          = len(test)
+        for i, identifier in enumerate(test):
+            msg('')
+            arr = dataloader.load_X(identifier, features = mask, force_dense = True)
+            mask[mask] = arr == 0
+            if (~mask).all():
+                break
+
+    selection  = dataloader.load_feature_selection(feature_selection).argsort()[~mask]
 
     Model   = get_model(model)
     

@@ -4,6 +4,9 @@ import json
 import scipy.sparse
 import numpy  as np
 import gzip
+import warnings
+
+warnings.filterwarnings('ignore')
 
 class DataLoader():
     """
@@ -50,14 +53,16 @@ class DataLoader():
             info = json.load(f)
             self.n, self.m = info['n'], info['m']
 
-    def _load_X(self, identifier, features):
+    def _load_X(self, identifier, features, dtype):
 
         npz = os.path.join(self.data_dir, f'{identifier}.npz')
 
         if self.dense:
-            arr, = np.load(npz).values()
+            arr,     = np.load(npz).values()
         else:
-            arr  = scipy.sparse.load_npz(npz)
+            col, val = np.load(npz).values()
+            arr      = scipy.sparse.csr_matrix((1, self.m), dtype = val.dtype)
+            arr[col] = val
 
         if features is not None:
             if self.dense:
@@ -65,7 +70,7 @@ class DataLoader():
             else:
                 arr = arr[:,features]
         
-        return arr
+        return arr.astype(dtype) if dtype else arr
 
     def _load_Y(self, identifier):
         return self.meta['search'][identifier]
@@ -97,7 +102,7 @@ class DataLoader():
 
         return ret
 
-    def load_X(self, *identifiers, features = None, dtype = np.uint16):
+    def load_X(self, *identifiers, features = None, dtype = np.uint16, force_dense = False):
         r"""
         loads all observations with associated ``identifiers``. If ``features`` is provided, loads only
         those feature values. If ``dtype`` is provided, tries to convert the ``dtype`` provided.
@@ -115,7 +120,9 @@ class DataLoader():
             for i, identifier in enumerate(identifiers):
                 X[i] = self._load_X(identifier, features)
         else:
-            X = scipy.sparse.vstack([self._load(identifier, features) for identifier in identifiers], dtype = dtype)
+            X = scipy.sparse.vstack([self._load_X(identifier, features) for identifier in identifiers], dtype = dtype)
+            if force_dense:
+                X = X.A
         return X
 
     def load_Y(self, *identifiers):
