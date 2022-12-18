@@ -230,14 +230,17 @@ def setup():
         if len(csvs) == 0:
             return print(f'no csv files found in {os.path.abspath(dir)}!')
         options = {csv : {'func' : lambda csv : _setup(dir, csv)} for csv in csvs}
-        enum(options, 'select metadata csv for setup', back = setup)
+        enum(options, 'setup', 'Select metadata csv for setup', back = setup)
     if working_directory == os.path.abspath('.'):
         return print('current directory is already setup')
     dirs = [dir for dir in os.listdir() if os.path.isdir(dir) and not dir.startswith('_') and not dir.startswith('.')]
     options = {'.' : {'func' : _setup_meta, 'info' : '(current directory)'}}
     for dir in dirs:
         options[dir] = {'func' : _setup_meta}
-    enum(options, 'setup', f'select data directory for setup within {os.path.abspath(".").replace(os.path.expanduser("~"), "~")}', back = exit)
+    try:
+        enum(options, 'setup', f'Select data directory for setup within {os.path.abspath(".").replace(os.path.expanduser("~"), "~")}', back = exit)
+    except KeyboardInterrupt:
+        print()
 
 def _setup(data_dir, meta):
     """ Sets the current working directory and metadata file within it """
@@ -256,7 +259,10 @@ def clean():
     """ Deletes all GenoLearn generated files upon user confirmation """
     if working_directory and os.path.exists(working_directory):
         option = dict(confirm = dict(func = _clean, info = 'this cannot be undone'))
-        enum(option, 'clean', 'confirm deletion of all GenoLearn generated files in {working_directory.replace(os.path.expanduser("~"), "~")}?', back = exit)
+        try:
+            enum(option, 'clean', 'confirm deletion of all GenoLearn generated files in {working_directory.replace(os.path.expanduser("~"), "~")}?', back = exit)
+        except:
+            print()
     else:
         print('unknown working directory - either cd into working directory then re-execute genolearn-clean or check if directory already clean')
 
@@ -649,35 +655,35 @@ classifiers = dict(
                   logistic_regression = \
                   dict(model = 'LogisticRegression',
                           config_name = dict(type = click.STRING, default = 'logistic-regression'),
-                          penalty = dict(type = click.Choice(['l1', 'l2', 'elasticnet', 'none']), default = 'l2'),
+                          penalty = dict(type = click.Choice(['l1', 'l2', 'elasticnet', 'none']), default = 'l2', show_choices = True),
                           dual = dict(type = click.BOOL, default = False),
                           tol = dict(type = click.FloatRange(1e-8), default = 1e-4),
                           C = dict(type = click.FloatRange(1e-8), default = 1.),
                           fit_intercept = dict(type = click.BOOL, default = True),
-                          class_weight = dict(type = click.Choice(['balanced', 'None']), default = 'None'),
+                          class_weight = dict(type = click.Choice(['balanced', 'None']), default = 'None', show_choices = True),
                           random_state = dict(type = click.INT, default = None),
-                          solver = dict(type = click.Choice(['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']), default = 'lbfgs'),
+                          solver = dict(type = click.Choice(['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']), default = 'lbfgs', show_choices = True),
                           max_iter = dict(type = click.IntRange(1), default = 100),
-                          multi_class = dict(type = click.Choice(['auto', 'ovr', 'multinomial']), default = 'auto'),
+                          multi_class = dict(type = click.Choice(['auto', 'ovr', 'multinomial']), default = 'auto', show_choices = True),
                           n_jobs = dict(type = click.IntRange(-1), default = -1),
                           l1_ratio = dict(type = click.FloatRange(0), default = 1.)),
                   random_forest = \
                   dict(model = 'RandomForestClassifier',
                           config_name = dict(type = click.STRING, default = 'random-forest'),
                           n_estimators = dict(type = click.IntRange(1), default = 100),
-                          criterion = dict(type = click.Choice(['gini', 'entropy', 'log_loss']), default = 'gini'),
+                          criterion = dict(type = click.Choice(['gini', 'entropy', 'log_loss']), default = 'gini', show_choices = True),
                           max_depth = dict(type = click.IntRange(1), default = None),
                           min_samples_split = dict(type = click.IntRange(1), default = 2),
                           min_samples_leaf = dict(type = click.IntRange(1), default = 1),
                           min_weight_fraction_leaf = dict(type = click.FloatRange(0., 0.5), default = 0.),
-                          max_features = dict(type = click.Choice(['sqrt', 'log2', 'None']), default = 'sqrt'),
+                          max_features = dict(type = click.Choice(['sqrt', 'log2', 'None']), default = 'sqrt', show_choices = True),
                           max_leaf_nodes = dict(type = click.IntRange(1), default = None),
                           min_impurity_decrease = dict(type = click.FloatRange(0), default = 0.),
                           bootstrap = dict(type = click.BOOL, default = True),
                           oob_score = dict(type = click.BOOL, default = False),
                           n_jobs = dict(type = click.IntRange(-1), default = -1),
                           random_state = dict(type = click.INT, default = None),
-                          class_weight = dict(type = click.Choice(['balanced', 'balanced_subsample', 'None']), default = None))
+                          class_weight = dict(type = click.Choice(['balanced', 'balanced_subsample', 'None']), default = None, show_choices = True))
                   )
 
 def _model(name):
@@ -737,12 +743,22 @@ def train(meta, feature_selection, model_config):
     """ Given a preprocessed metadata file, trains model(s) and save outputs to the train subdirectory within the working directory """
     params = locals().copy()
     print(f'{PRE}\n\nCommand: train\n\nTrain parameters for metadata "{meta}" with feature-selection "{feature_selection}" and model config "{model_config}"\n')
+
     default = f'{feature_selection}-{model_config}'
+    group   = ['Train', 'Test']
+    with open(os.path.join(working_directory, 'meta', meta)) as f:
+        meta_ = json.load(f)
+        if set(meta_['group']) != {'Train', 'Test'}:
+            group = list(meta_['group']) + group
+        
+    from genolearn.metrics import _metrics
+
+    choice  = click.Choice(sorted(set(_metrics) - {'count'}))
     info    = dict(output_dir = dict(type = click.Path(), default = default),
                    num_features = dict(default = 1000, type = click.IntRange(1), multiple = True),
                    min_count = dict(default = 0, type = click.IntRange(0)),
-                   target_subset = dict(default = 'None', type = click.STRING),
-                   metric = dict(default = 'f1_score', type = click.STRING),
+                   target_subset = dict(default = 'None', type = click.Choice(group)),
+                   metric = dict(default = 'f1_score', type = choice, show_choices = False),
                    aggregate_func = dict(default = 'weighted_mean', type = click.Choice(['mean', 'weighted_mean'])))
 
     params.update(prompt(info))

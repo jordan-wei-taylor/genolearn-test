@@ -73,11 +73,11 @@ def subdir(path, sub, ext = 0):
         return subdir(path, sub, ext + 1)
     return _sub
 
-def _gen_prompt(msg, type, default ,space, default_option, multiple):
+def _gen_prompt(msg, type, default ,space, default_option, multiple, show_choices):
     if multiple:
         msg = f'{msg}*'
     msg = f'{msg}' + ' ' * space
-    if isinstance(type, click.Choice):
+    if isinstance(type, click.Choice) and show_choices:
         msg = f'{msg} ' + '{' + ', '.join(map(str, type.choices)) + '}'
     if default_option:
        msg = f'{msg} [{default}]' 
@@ -101,7 +101,7 @@ def _convert_range(string):
     string = ','.join(ls)
     return string
 
-def _prompt(msg, type, default, default_option = True, multiple = False):
+def _prompt(msg, type, default, default_option = True, multiple = False, show_choices = False):
 
     # user input
     value = input(msg + ': ')
@@ -112,7 +112,7 @@ def _prompt(msg, type, default, default_option = True, multiple = False):
             value = str(default)
         else:
             print('user input required!')
-            return _prompt(msg, type, default, default_option, multiple)
+            return _prompt(msg, type, default, default_option, multiple, show_choices)
 
     # check range
     if 'range' in value:
@@ -120,7 +120,7 @@ def _prompt(msg, type, default, default_option = True, multiple = False):
         # warn and re-input if type is not int
         if (type != click.INT) and not isinstance(type, click.IntRange):
             _warn(value, type)
-            return _prompt(msg, type, default, default_option, multiple)
+            return _prompt(msg, type, default, default_option, multiple, show_choices)
 
         # convert range string to list of integers
         value = _convert_range(value)
@@ -137,7 +137,7 @@ def _prompt(msg, type, default, default_option = True, multiple = False):
             check = _check(value, type)
             if not check:
                 _warn(value, type)
-                return _prompt(msg, type, default, default_option, multiple)
+                return _prompt(msg, type, default, default_option, multiple, show_choices)
         values = [None if value == None else value for value in map(type, values)]
         return values
 
@@ -149,7 +149,7 @@ def _prompt(msg, type, default, default_option = True, multiple = False):
             return value
         return [type(value)] if multiple else type(value)
     _warn(value, type)
-    return _prompt(msg, type, default, default_option, multiple)
+    return _prompt(msg, type, default, default_option, multiple, show_choices)
     
 def _default(info):
     if isinstance(info['type'], click.Choice) and len(info['type'].choices) == 1:
@@ -161,7 +161,8 @@ def prompt(params):
     prompts = []
     for key, info in params.items():
         default = _default(info)
-        prompt = _gen_prompt(info.get('prompt', key), info['type'], default, 0, 'default' in info or default, info.get('multiple', False))
+        show    = info.get('show_choices', False)
+        prompt = _gen_prompt(info.get('prompt', key), info['type'], default, 0, 'default' in info or default, info.get('multiple', False), show)
         prompts.append(prompt)
     
     length = max(map(len, prompts))
@@ -172,7 +173,7 @@ def prompt(params):
             continue
         default = _default(info)
         flag    = 'default' in info or default
-        value   = _prompt(f'{prompts[i]:{length}s}', info['type'], default, flag, info.get('multiple', False))
+        value   = _prompt(f'{prompts[i]:{length}s}', info['type'], default, flag, info.get('multiple', False), info.get('show_choices', False))
         config[key] = value
     return config
 

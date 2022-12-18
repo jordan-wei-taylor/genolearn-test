@@ -64,15 +64,15 @@ def post(i, value, *args, **kwargs):
     m2  = np.divide(s2, n, where = n > 0)
 
     # compute D and S as per www.genolearn.readthedocs.io/usage/feature-selection.html
-    D   = np.square(m1 - mu)
-    S   = m2 - np.square(m1)
+    D   = np.square(m1 - mu).T
+    S   = (m2 - np.square(m1)).T
 
     # reshape from 2D back to 1D
     n   = n.reshape(-1)
 
     # numerator and denominator expressions for Fisher Score
-    num = n @ D
-    den = n @ S
+    num = D @ n
+    den = S @ n
 
     S   = np.divide(num, den, where = den > 0)
 
