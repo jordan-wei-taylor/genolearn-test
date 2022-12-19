@@ -816,11 +816,11 @@ def evaluate(train_dir):
 
     with open(os.path.join(working_directory, 'meta', meta)) as f:
         meta   = json.load(f)
-        if set(meta['group']) == {'Train', 'Test'}:
+        if set(meta['group']) == {'Train', 'Val'}:
             groups = []
         else:
             groups = list(meta['group'])
-        groups += ['Train' ,'Test', 'unlabelled']
+        groups += ['Train' ,'Val', 'unlabelled']
 
     info   = dict(output    = dict(prompt = 'output filename', type = click.Path()),
                   values    = dict(prompt = 'group values', type = click.Choice(groups), multiple = True))

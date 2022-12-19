@@ -72,8 +72,8 @@ class DataLoader():
             elif identifier in self.meta['group']:
                 ret += self.meta['group'][identifier]
             
-            # check if it is Train / Test and append entire associated identifiers
-            elif identifier in ['Train', 'Test']:
+            # check if it is Train / Val and append entire associated identifiers
+            elif identifier in ['Train', 'Val']:
                 for group in self.meta[identifier]:
                     ret += self.meta['group'][group]
 
