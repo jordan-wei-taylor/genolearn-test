@@ -260,10 +260,7 @@ def clean():
     """ Deletes all GenoLearn generated files upon user confirmation """
     if working_directory and os.path.exists(working_directory):
         option = dict(confirm = dict(func = _clean, info = 'this cannot be undone'))
-        try:
-            enum(option, 'clean', f'confirm deletion of all GenoLearn generated files in {path.expanduser(working_directory)}?', back = exit)
-        except:
-            print()
+        enum(option, 'clean', f'confirm deletion of all GenoLearn generated files in {path.expanduser(working_directory)}?', back = exit)
     else:
         print('unknown working directory - either cd into working directory then re-execute genolearn-clean or check if directory already clean')
 
@@ -273,11 +270,10 @@ def _clean():
     for dir in ['evaluate', 'feature-selection', 'meta', 'model', 'preprocess', 'train']:
         if dir in ls:
             rmtree(dir)
-    hidden = '.genolearn'
-    if hidden in ls:
-        os.remove(hidden)
+    if os.path.exists('.genolearn'):
+        os.remove('.genolearn')
     Path = os.path.join(os.path.dirname(__file__), 'wd')
-    with open(path) as f:
+    with open(Path) as f:
         wd = f.read()
     if wd == working_directory:
         os.remove(Path)
@@ -295,7 +291,7 @@ def __print(name, limit = 5):
 
     if active is None:
         return print('execute "genolearn config create" first')
-        
+
     if name == 'config':
         print('.genolearn config\n')
         with open('.genolearn') as f:
