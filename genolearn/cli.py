@@ -1,6 +1,6 @@
 from   genolearn.logger import up, clear, print_dict
 from   genolearn.utils  import prompt, _prompt, set_params, get_params
-from   genolearn        import __version__, ls, working_directory, get_active, listdir
+from   genolearn        import __version__, ls, working_directory, get_active, path
 
 from   shutil           import rmtree
 
@@ -15,7 +15,7 @@ import os
 """ general utility variables and functions """
 
 # set preprocessed metadata list
-metas  = listdir('meta')
+metas  = path.listdir('meta')
 
 # get active working directory and input metadata
 active = get_active()
@@ -31,18 +31,18 @@ def user_input(text, n):
     return None, True
 
 def append(command):
-    with open(os.path.join(working_directory, '.genolearn')) as file:
+    with path.open('.genolearn') as file:
         log = json.load(file)
         log['history'].append(command)
-    with open(os.path.join(working_directory, '.genolearn'), 'w') as file:
+    with path.open('.genolearn', 'w') as file:
         print(json.dumps(log, indent = 4), file = file, end = '')
 
 def check_working_directory():
     if working_directory:
         if os.path.exists(working_directory):
-            if '.genolearn' in listdir():
+            if '.genolearn' in path.listdir():
                 return True
-    return False
+    return False 
 
 PRE = \
 f"""
@@ -55,7 +55,7 @@ See https://genolearn.readthedocs.io for documentation.
 """.strip()
 
 if check_working_directory():
-    PRE = f'{PRE}\n\nWorking directory: {working_directory.replace(os.path.expanduser("~"), "~")}'
+    PRE = f'{PRE}\n\nWorking directory: {path.expanduser(working_directory)}'
 
 def enum(options, command = '', pre = '', post = 'user input', k = None, back = None):
     """
@@ -182,14 +182,14 @@ def reduce(d, limit):
 
 def read_log(file):
     """ Reads only the dictionary component of a text file """
-    with open(os.path.join(working_directory, file)) as f:
+    with path.open(file) as f:
         string = f.read()
         log    = json.loads(string[string.index('{'):])
         return log
 
 def check_history(string):
     """ Checks if any previously executed commands starts with {string}"""
-    with open(os.path.join(working_directory, '.genolearn')) as f:
+    with path.open('.genolearn') as f:
         history = json.load(f)['history']
         for line in history:
             if line.startswith(string):
@@ -199,7 +199,7 @@ def check_history(string):
 def select_train_dir(command, func, back, train_dir_func = None):
     """ Wrapper for first selecting training directory """
     def _select_train_dir():
-        train_dirs = os.listdir(os.path.join(working_directory, 'train'))
+        train_dirs = path.listdir('train')
         common  = lambda train_dir : {'func' : func, 'info' : train_dir_func(train_dir)} if train_dir_func else {'func' : func}
         options = {train_dir : common(train_dir) for train_dir in train_dirs}
         enum(options, command, 'Select a train subdirectory', back = back)
@@ -207,16 +207,16 @@ def select_train_dir(command, func, back, train_dir_func = None):
     
 def detect_feature_importance(train_dir):
     """ Adds the "info" entry when selecting a train_dir for the feature-importance command """
-    if 'importance' in listdir(os.path.join('train', train_dir)):
+    if 'importance' in path.listdir('train', train_dir):
         return '(already exists)'
     return ''
 
 def detect_evaluate(train_dir):
     """ Adds the "info" entry when selecting a train_dir for the evaluate command """
-    path = os.path.join(working_directory, 'train', train_dir, 'evaluate')
-    if train_dir in listdir('train') and os.path.exists(path):
+    Path = path.join('train', train_dir, 'evaluate')
+    if train_dir in path.listdir('train') and os.path.exists(Path):
         ret = []
-        for file in listdir(path):
+        for file in path.listdir(Path):
             if file.startswith('full'): continue
             ret.append(file.replace('.csv', ''))
         return f'({", ".join(ret)})'
@@ -239,7 +239,7 @@ def setup():
     for dir in dirs:
         options[dir] = {'func' : _setup_meta}
     try:
-        enum(options, 'setup', f'Select data directory for setup within {os.path.abspath(".").replace(os.path.expanduser("~"), "~")}', back = exit)
+        enum(options, 'setup', f'Select data directory for setup within {path.expanduser(os.path.abspath("."))}', back = exit)
     except KeyboardInterrupt:
         print()
 
@@ -261,7 +261,7 @@ def clean():
     if working_directory and os.path.exists(working_directory):
         option = dict(confirm = dict(func = _clean, info = 'this cannot be undone'))
         try:
-            enum(option, 'clean', 'confirm deletion of all GenoLearn generated files in {working_directory.replace(os.path.expanduser("~"), "~")}?', back = exit)
+            enum(option, 'clean', f'confirm deletion of all GenoLearn generated files in {path.expanduser(working_directory)}?', back = exit)
         except:
             print()
     else:
@@ -276,11 +276,11 @@ def _clean():
     hidden = '.genolearn'
     if hidden in ls:
         os.remove(hidden)
-    path = os.path.join(os.path.dirname(__file__), 'wd')
+    Path = os.path.join(os.path.dirname(__file__), 'wd')
     with open(path) as f:
         wd = f.read()
     if wd == working_directory:
-        os.remove(path)
+        os.remove(Path)
     print(f'cleaned {working_directory}')
 
 """ genolearn print """
@@ -295,17 +295,7 @@ def __print(name, limit = 5):
 
     if active is None:
         return print('execute "genolearn config create" first')
-    locations = ['meta', 'model']
-    if name == 'None':
-        for i, location in enumerate(locations):
-            loc = location.replace(os.path.expanduser('~'), '~')
-            if os.path.exists(location):
-                print(f'{loc}\n  - ' + '\n  - '.join(os.listdir(location)))
-            else:
-                command = 'config model' if i else 'preprocess meta'
-                print(f'{loc} (does not exist - execute "genolearn {command}" first)')
-            if i < 1:
-                print()
+        
     if name == 'config':
         print('.genolearn config\n')
         with open('.genolearn') as f:
@@ -353,7 +343,7 @@ def analyse(meta):
 def head(meta, num = 10):
     """ Prints the first NUM rows of meta data """
     print(os.path.join('meta', meta), '\n')
-    meta   = os.path.join(working_directory, 'meta', meta)
+    meta   = path.join('meta', meta)
     from genolearn.core.data import head
     head(meta, num)
 
@@ -361,7 +351,7 @@ def head(meta, num = 10):
 def tail(meta, num = 10):
     """ Prints the last NUM rows of meta data """
     print(os.path.join('meta', meta), '\n')
-    meta   = os.path.join(working_directory, 'meta', meta)
+    meta   = path.join('meta', meta)
     from genolearn.core.data import tail
     tail(meta, num)
 
@@ -369,7 +359,7 @@ def tail(meta, num = 10):
 def sample(meta, num = 10):
     """ Prints random NUM rows of meta data """
     print(os.path.join('meta', meta), '\n')
-    meta   = os.path.join(working_directory, 'meta', meta)
+    meta   = path.join('meta', meta)
     from genolearn.core.data import sample
     sample(meta, num)
 
@@ -404,22 +394,22 @@ def _print():
         options['meta'] = dict(info = 'metadata information', func = metadata)
 
     if 'preprocess' in ls:               
-        key          = os.path.join(working_directory, 'preprocess', 'preprocess.log')
+        key          = path.join('preprocess', 'preprocess.log')
         options[key] = dict(prompt = 'preprocess.log', info = '(preprocess)', func = func)
 
-        if 'combine.log' in listdir('preprocess'):
-            key          = os.path.join(working_directory, 'preprocess', 'combine.log')
+        if 'combine.log' in path.listdir('preprocess'):
+            key          = path.join('preprocess', 'combine.log')
             options[key] = dict(prompt = 'combine.log', info = '(preprocess)', func = func)
 
     for subdir in ['meta', 'feature-selection', 'model']:
-        for file in listdir(subdir):
+        for file in path.listdir(subdir):
             if subdir != 'feature-selection' or file.endswith('.log'):
-                key          = os.path.join(working_directory, subdir, file)
+                key          = path.join(subdir, file)
                 options[key] = dict(prompt = file, info = f'({subdir})', func = func)
 
-    for subdir in listdir('train'):
+    for subdir in path.listdir('train'):
         for file in ['params.json', 'train.log']:
-            key          = os.path.join(working_directory, 'train', subdir, file)
+            key          = path.join('train', subdir, file)
             options[key] = dict(prompt = file, info = f'({os.path.join("train", subdir)})', func = func)
 
     enum(options, 'print', 'Select option to print', back = menu)
@@ -428,20 +418,20 @@ def _print():
 
 def preprocess_sequence_data():
     """ Select sequential data to preprocess """
-    gzs     = [gz for gz in os.listdir(os.path.join(working_directory, active['data_dir'])) if gz.endswith('.gz')]
+    gzs     = [gz for gz in path.listdir(active['data_dir']) if gz.endswith('.gz')]
     if len(gzs) == 0:
         return print('no sequence data (*.gz) files found!')
     options = {}
     for gz in gzs:
         info = ''
-        if 'preprocess' in listdir():
-            path = os.path.join(working_directory, 'preprocess', 'preprocess.log')
+        if 'preprocess' in path.listdir():
+            Path = path.join('preprocess', 'preprocess.log')
             if os.path.exists(path):
-                log = read_log(path)
+                log = read_log(Path)
                 if os.path.basename(log['data']) == gz:
                     info = '(already preprocessed)'
-                if 'combine.log' in listdir('preprocess'):
-                    log = read_log(os.path.join('preprocess', 'combine.log'))
+                if 'combine.log' in path.listdir('preprocess'):
+                    log = read_log(path.join('preprocess', 'combine.log'))
                     if isinstance(log['data'], str):
                         data = [os.path.basename(log['data'])]
                     else:
@@ -462,7 +452,7 @@ def preprocess_sequence(data):
     params = dict(data = data)
     params.update(prompt(info))
 
-    params['data']         = os.path.join(working_directory, active['data_dir'], data).replace(os.path.expanduser('~'), '~')
+    params['data']         = path.expanduser(path.join(active['data_dir'], data))
 
     if params['max_features'] != None:
         params['verbose'] = params['max_features'] // 10
@@ -484,20 +474,20 @@ def preprocess_sequence(data):
 
 def preprocess_combine_data():
     """ Select sequential data to preprocess and combine with already preprocessed data """
-    with open(os.path.join(working_directory, '.genolearn')) as f:
+    with path.open('.genolearn') as f:
         log = json.load(f)
         preprocessed = []
         for line in log['history']:
             if line.startswith('preprocess sequence'):
                 preprocessed.append(line[21:-1])
-    if 'combine.log' in listdir('preprocess'):
-        log  = read_log(os.path.join('preprocess', 'combine.log'))
+    if 'combine.log' in path.listdir('preprocess'):
+        log  = read_log(path.join('preprocess', 'combine.log'))
         if isinstance(log['data'], str):
             preprocessed.append(os.path.basename(log['data']))
         else:
             preprocessed += [os.path.basename(file) for file in log['data']]
     options = {}
-    for data in listdir(active['data_dir']):
+    for data in path.listdir(active['data_dir']):
         if data.endswith('.gz') and data not in preprocessed:
             options[data] = {'func' : preprocess_combine}
     if len(options) == 0:
@@ -514,10 +504,10 @@ def preprocess_combine(data):
     params = dict(data = data)
     params.update(prompt(info))
 
-    meta   = read_log(os.path.join('preprocess', 'preprocess.log'))
+    meta   = read_log(path.join('preprocess', 'preprocess.log'))
     params['max_features'] = meta['max_features']
 
-    params['data'] = os.path.join(working_directory, active['data_dir'], data).replace(os.path.expanduser('~'), '~')
+    params['data'] = path.expanduser(path.join(active['data_dir'], data))
 
     if params['max_features'] != None:
         params['verbose'] = params['max_features'] // 10
@@ -533,11 +523,11 @@ def preprocess_combine(data):
 
     from   genolearn.core.preprocess import combine
 
-    if 'combine.log' in listdir('preprocess'):
-        log    = read_log(os.path.join('preprocess', 'combine.log'))
+    if 'combine.log' in path.listdir('preprocess'):
+        log    = read_log(path.join('preprocess', 'combine.log'))
         PARAMS = get_params().copy()
         if isinstance(log['data'], str):
-            PARAMS['data']  = [log['data'], params['data'].replace(os.path.expanduser('~'), '~')]
+            PARAMS['data']  = [log['data'], path.expanduser(params['data'])]
         else:
             PARAMS['data'] += [log['data']]
         set_params(PARAMS)
@@ -548,7 +538,7 @@ def preprocess_combine(data):
 
 def preprocess_meta():
     """ Preprocesses metadata """
-    meta_path      = os.path.join(working_directory, active['data_dir'], active['meta'])
+    meta_path      = path.join(active['data_dir'], active['meta'])
     print(f'{PRE}\n\nCommand: preprocess meta\n\nParameters for preprocessing "{os.path.basename(active["meta"])}"\n')
 
     meta_df        = pd.read_csv(meta_path).applymap(str)
@@ -598,14 +588,14 @@ def preprocess():
 def _feature_selection():
     """ Wrapper for first selecting metadata and then feature-selection method """
 
-    path = 'feature-selection'
+    Path = 'feature-selection'
 
     def detect(meta, method = None):
         ret = []
-        if os.path.exists(os.path.join(working_directory, path)):
-            for file in listdir(path):
+        if path.exists(path.join(Path)):
+            for file in path.listdir(Path):
                 if file.endswith('.log'):
-                    log = read_log(os.path.join(path, file))
+                    log = read_log(path.join(Path, file))
                     if method:
                         if (log['meta'], log['method']) == (meta, method):
                             return '(already exists)'
@@ -691,11 +681,11 @@ def _model(name):
     print(f'{PRE}\n\nCommand: model-config\n\nParameters for {params["model"]}\n')
     params.update(prompt(classifier))
     config_name = params.pop('config_name')
-    path        = os.path.join(working_directory, 'model')
-    os.makedirs(path, exist_ok = True)
-    with open(os.path.join(path, config_name), 'w') as file:
+    Path        = path.join('model')
+    os.makedirs(Path, exist_ok = True)
+    with open(os.path.join(Path, config_name), 'w') as file:
         print(json.dumps(params, indent = 4), file = file)
-    print(f'generated "{config_name}" in {path}')
+    print(f'generated "{config_name}" in {Path}')
     append(f'model ({config_name})')
 
 def model_config():
@@ -712,10 +702,10 @@ def detect_train(meta, feature_selection = None, model_config = None):
     num    = 1 + bool(feature_selection) + bool(model_config)
     target = (meta, feature_selection, model_config)[:num]
     if 'train' in ls:
-        for train_dir in listdir('train'):
-            path = os.path.join(working_directory, 'train', train_dir, 'train.log')
-            if os.path.exists(path):
-                log = read_log(path)
+        for train_dir in path.listdir('train'):
+            Path = path.join('train', train_dir, 'train.log')
+            if os.path.exists(Path):
+                log = read_log(Path)
                 if (log['meta'], log['feature_selection'], log['model_config'])[:num] == target:
                     ret.append(train_dir)
     return f'({", ".join(ret)})' if ret else ''
@@ -724,16 +714,16 @@ def _train():
     def _select_model_config(meta_feature_selection):
         meta, feature_selection = meta_feature_selection
         options = {}
-        for model_config in listdir('model'):
+        for model_config in path.listdir('model'):
             func = lambda model_config : train(meta, feature_selection, model_config)
             info = detect_train(meta, feature_selection, model_config)
             options[model_config] = {'func' : func, 'info' : info}
         pre_text = f'Select a model config to use with "{meta}" metadata and "{feature_selection}" feature selection to train'
         enum(options, 'train', pre_text, back = _train)
     options = {}
-    for selection in listdir('feature-selection'):
+    for selection in path.listdir('feature-selection'):
         if selection.endswith('.log'):
-            log  = read_log(os.path.join('feature-selection', selection))
+            log  = read_log(path.join('feature-selection', selection))
             meta = log['meta']
             selection = selection.replace('.log', '')
             options[(meta, selection)] = {'prompt' : selection, 'info' : f'("{meta}" metadata)', 'func' : _select_model_config}
@@ -746,7 +736,7 @@ def train(meta, feature_selection, model_config):
 
     default = f'{feature_selection}-{model_config}'
     group   = ['Train', 'Test']
-    with open(os.path.join(working_directory, 'meta', meta)) as f:
+    with path.open(path.join('meta', meta)) as f:
         meta_ = json.load(f)
         if set(meta_['group']) != {'Train', 'Test'}:
             group = list(meta_['group']) + group
@@ -785,16 +775,19 @@ def train(meta, feature_selection, model_config):
 
 def feature_importance(train_dir):
     """ Given a training directory, computes the Feature Importance and outputs an Importance subdirectory """
+
+    os.chdir(working_directory)
+
     params = {}
     
     params['output']    = os.path.join('train', train_dir, 'importance')
     
 
-    log = read_log(os.path.join('train', train_dir, 'train.log'))
+    log = read_log(path.join('train', train_dir, 'train.log'))
     for key in ['meta', 'feature_selection']:
         params[key] = log[key]
 
-    log = read_log(os.path.join('train', train_dir, 'params.json'))
+    log = read_log(path.join('train', train_dir, 'params.json'))
     params['num_features'] = log['num_features']
     
     print_dict('executing "genolearn feature-importance" with parameters:', params)
@@ -810,11 +803,11 @@ def evaluate(train_dir):
     """  Given a training directory, evaluates a model on user prompted inputs and outputs to the evaluate subdirectory within the working directory """
     print(f'{PRE}\n\nCommand: evaluate\n\nEvaluate parameters for "{train_dir}"\n')
 
-    path = os.path.join(working_directory, 'train', train_dir)
-    log  = read_log(os.path.join(path, 'train.log'))
+    Path = path.join('train', train_dir)
+    log  = read_log(path.join(Path, 'train.log'))
     meta = log['meta']
 
-    with open(os.path.join(working_directory, 'meta', meta)) as f:
+    with path.open(path.join('meta', meta)) as f:
         meta   = json.load(f)
         if set(meta['group']) == {'Train', 'Val'}:
             groups = []
@@ -828,21 +821,21 @@ def evaluate(train_dir):
     params = dict(train_dir = train_dir)
     params.update(prompt(info))
 
-    log = read_log(os.path.join(path, 'train.log'))
+    log = read_log(path.join(Path, 'train.log'))
     for key in ['meta', 'feature_selection', 'binary']:
         params[key] = log[key]
 
-    log = read_log(os.path.join(path, 'params.json'))
+    log = read_log(path.join(Path, 'params.json'))
     params['num_features'] = log['num_features']
 
     print_dict('executing "evaluate" with parameters:', params)
 
-    log = read_log(os.path.join(path, 'encoding.json'))
+    log = read_log(path.join(Path, 'encoding.json'))
     params['encoder'] = log
 
-    path   = os.path.join(path, 'evaluate')
+    Path   = path.join(Path, 'evaluate')
 
-    os.makedirs(path, exist_ok = True)
+    os.makedirs(Path, exist_ok = True)
 
     if not params['output'].endswith('.csv'):
         params['output'] = params['output'] + '.csv'
@@ -852,11 +845,9 @@ def evaluate(train_dir):
     data_config = dict(working_dir = working_directory, meta_file = params.pop('meta'))
 
     params['data_config'] = data_config
-
-    os.chdir(path)
-
     params.pop('train_dir')
-    
+    os.chdir(Path)
+
     evaluate(**params)
     append(f'evaluate ({train_dir} {os.path.basename(params["output"]).replace(".csv", "")})')
 
