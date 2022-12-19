@@ -20,3 +20,6 @@ wd
 
 # copy script
 _copy.py
+
+# version updating script
+version.py
