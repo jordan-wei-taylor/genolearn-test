@@ -1,4 +1,4 @@
-def train(output_dir, meta, model_config, feature_selection, num_features, min_count, target_subset, metric, aggregate_func):
+def train(output_dir, meta, model_config, feature_selection, num_features, binary, min_count, target_subset, metric, aggregate_func):
 
     import os
     import json
@@ -9,7 +9,7 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
     from genolearn.models.classification import get_model
     from genolearn.models                import grid_predictions
     from genolearn.dataloader            import DataLoader
-    from genolearn.logger                import msg, Writing, Computing
+    from genolearn.logger                import msg, Writing, Computing, Waiting
 
     import warnings
     import numpy as np
@@ -31,24 +31,12 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
     common     = {key : val for key, val in model_config.items() if key not in kwargs}
 
     dataloader = DataLoader(meta)
+    selection  = dataloader.load_feature_selection(feature_selection).argsort()
+    Model      = get_model(model)
+    dtype      = bool if binary else None
 
-    with Computing('common features between the train and test datasets', delete = 2):
-        test       = dataloader.load_train_test_identifiers(min_count, target_subset)[1]
-        mask       = np.ones(dataloader.m, dtype = bool)
-        n          = len(test)
-        for i, identifier in enumerate(test, 1):
-            msg(f'{i} of {n:,d}', inline = True)
-            arr = dataloader.load_X(identifier, features = mask)
-            mask[mask] = arr.flatten() == 0
-            if (~mask).all():
-                break
-
-    selection  = dataloader.load_feature_selection(feature_selection).argsort()[~mask]
-
-    Model   = get_model(model)
+    outputs, params, X, Y = grid_predictions(dataloader, Model, selection, num_features, dtype, common, min_count, target_subset, metric, aggregate_func, **kwargs)
     
-    outputs, params = grid_predictions(dataloader, Model, selection, num_features, common, min_count, target_subset, metric, aggregate_func, **kwargs)
-        
     model, predict, *probs = outputs.pop('best')
 
     target  = outputs['target']
@@ -85,6 +73,16 @@ def train(output_dir, meta, model_config, feature_selection, num_features, min_c
 
     with open(enc, 'w') as f:
         f.write(json.dumps(dataloader._encoder, indent = 4))
+
+    num_features = params.pop('num_features')
+
+    with Waiting('fitting', 'fitted', 'full model'):
+        full_model = Model(**params).fit(X[:,:num_features], Y)
+
+    path = os.path.join(output_dir, 'full-model.pickle')
+    with Writing(path, inline = True):
+        with open(path, 'wb') as f:
+            pickle.dump(full_model, f)
 
     create_log('train', output_dir)
 

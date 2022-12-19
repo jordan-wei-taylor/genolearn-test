@@ -2,8 +2,8 @@ def _analyse(meta, min_count, proportion):
     
     import pandas as pd
 
-    check   = set(meta['group']) != {'Train', 'Test'}
-    columns = list(meta['group']) + ['Train' ,'Test'] if check else ['Train' ,'Test']
+    check   = set(meta['group']) != {'train', 'val'}
+    columns = list(meta['group']) + ['Train' ,'Val'] if check else ['Train' ,'Val']
     count   = pd.DataFrame(index = meta['targets'], columns = columns, data = 0)
 
     if check:
@@ -12,12 +12,12 @@ def _analyse(meta, min_count, proportion):
                 target = meta['search'][identifier]
                 count.loc[target, group] += 1
 
-    for key in ['Train', 'Test']:
+    for key in ['Train', 'Val']:
         for group in meta[key]:
             for identifier in meta['group'][group]:
                 count.loc[meta['search'][identifier], key] += 1
 
-    count['Global']    = count['Train'] + count['Test']
+    count['Global']    = count['Train'] + count['Val']
     count.loc['Total'] = count.sum(axis = 0).copy()
 
     suggested_subset = count.index[:-1][count['Train'].values[:-1] >= min_count]

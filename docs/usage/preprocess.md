@@ -97,7 +97,7 @@ where the other parameters mentioned in ``preprocess sequence`` are automaticall
 Meta
 ====
 
-This command is only available once the user has executed the ``preprocess sequence`` command. This command defines the *train* and *test* datasets for later modelling purposes.
+This command is only available once the user has executed the ``preprocess sequence`` command. This command defines the *train* and *validation* datasets for later modelling purposes.
 
 The user is prompted for parameters
 
@@ -116,17 +116,17 @@ if the user selects ``None`` as the ``group`` value or
     target                 :
     group            [None]:
     train group values*    :
-    test  group values*    :
+    val group values*      :
 
 if the user enters a column present in their metadata csv where
 
 + ``output`` is the output filename storing the collected information from the user.
 + ``identifier`` is a column within the metadata csv containing the unique identifiers.
 + ``target`` is a column within the metadata csv containing the target metadata labels.
-+ ``group`` is either a column within the metadata csv that helps the user split the data into *train* and *test* datasets or left as ``None``
-+ ``proportion train`` is only available if ``group`` is ``None`` and is a sensible proportion value to randomly assign as *train* with the rest as *test*.
++ ``group`` is either a column within the metadata csv that helps the user split the data into *train* and *validation* datasets or left as ``None``
++ ``proportion train`` is only available if ``group`` is ``None`` and is a sensible proportion value to randomly assign as *train* with the rest as *validation*.
 + ``train group values*`` is only available if ``group`` is not ``None`` and contains a comma seperated string indicating which group values belong to *train*.
-+ ``test  group values*`` is only available if ``group`` is not ``None`` and contains a comma seperated string indicating which group values belong to *test*. Note that these values cannot overlap with ``train group values*``.
++ ``val group values*`` is only available if ``group`` is not ``None`` and contains a comma seperated string indicating which group values belong to *validation*. Note that these values cannot overlap with ``train group values*``.
 
 Upon a successful execution of this command, within the ``working directory`` is a ``meta`` subdirectory with an additional entry of ``output``.
   

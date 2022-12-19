@@ -217,6 +217,7 @@ def detect_evaluate(train_dir):
     if train_dir in listdir('train') and os.path.exists(path):
         ret = []
         for file in listdir(path):
+            if file.startswith('full'): continue
             ret.append(file.replace('.csv', ''))
         return f'({", ".join(ret)})'
     return ''
@@ -417,10 +418,9 @@ def _print():
                 options[key] = dict(prompt = file, info = f'({subdir})', func = func)
 
     for subdir in listdir('train'):
-        for sub in listdir(os.path.join('train', subdir)):
-            if sub.endswith('.log'):
-                key          = os.path.join(working_directory, 'train', subdir, sub)
-                options[key] = dict(prompt = sub, info = f'({os.path.join("train", subdir)})', func = func)
+        for file in ['params.json', 'train.log']:
+            key          = os.path.join(working_directory, 'train', subdir, file)
+            options[key] = dict(prompt = file, info = f'({os.path.join("train", subdir)})', func = func)
 
     enum(options, 'print', 'Select option to print', back = menu)
 
@@ -570,17 +570,17 @@ def preprocess_meta():
         groups       = set(sorted(set(meta_df[group])))
         train_values = _prompt('train group values*    ', type = click.Choice(groups), default = None, default_option = False, multiple = True)
         groups      -= set(train_values)
-        test_values  = _prompt('test  group values*    ', type = click.Choice(groups), default = None, default_option = False, multiple = True)
+        val_values   = _prompt('val group values*      ', type = click.Choice(groups), default = None, default_option = False, multiple = True)
         ptrain       = None
     else:
-        train_values = ['Train']
-        test_values  = ['Test']
+        train_values = ['train']
+        val_values   = ['val']
         ptrain       = click.prompt('proportion train', type = click.FloatRange(0., 1.), default = 0.75)
 
     from genolearn.core.preprocess import preprocess_meta
 
     os.chdir(working_directory)
-    preprocess_meta(output, meta_path, identifier, target, group, train_values, test_values, ptrain)
+    preprocess_meta(output, meta_path, identifier, target, group, train_values, val_values, ptrain)
     append(f'preprocess meta ({output})')
 
 def preprocess():
@@ -756,6 +756,7 @@ def train(meta, feature_selection, model_config):
     choice  = click.Choice(sorted(set(_metrics) - {'count'}))
     info    = dict(output_dir = dict(type = click.Path(), default = default),
                    num_features = dict(default = 1000, type = click.IntRange(1), multiple = True),
+                   binary = dict(default = False, type = click.BOOL),
                    min_count = dict(default = 0, type = click.IntRange(0)),
                    target_subset = dict(default = 'None', type = click.Choice(group)),
                    metric = dict(default = 'f1_score', type = choice, show_choices = False),
@@ -784,19 +785,19 @@ def train(meta, feature_selection, model_config):
 
 def feature_importance(train_dir):
     """ Given a training directory, computes the Feature Importance and outputs an Importance subdirectory """
-    params = dict(train_dir = train_dir)
+    params = {}
+    
+    params['output']    = os.path.join('train', train_dir, 'importance')
+    
 
+    log = read_log(os.path.join('train', train_dir, 'train.log'))
+    for key in ['meta', 'feature_selection']:
+        params[key] = log[key]
+
+    log = read_log(os.path.join('train', train_dir, 'params.json'))
+    params['num_features'] = log['num_features']
+    
     print_dict('executing "genolearn feature-importance" with parameters:', params)
-    
-    params['train_dir'] = os.path.join('train', params['train_dir'])
-    params['model']     = os.path.join(params['train_dir'], 'model.pickle')
-    params['output']    = os.path.join(params['train_dir'], 'importance')
-    
-    os.chdir(working_directory)
-
-    log = read_log(os.path.join(params.pop('train_dir'), 'train.log'))
-    params['feature_selection'] = log['feature_selection']
-    params['meta'] = log['meta']
 
     from   genolearn.core.feature_importance import feature_importance
 
@@ -828,7 +829,7 @@ def evaluate(train_dir):
     params.update(prompt(info))
 
     log = read_log(os.path.join(path, 'train.log'))
-    for key in ['meta', 'feature_selection']:
+    for key in ['meta', 'feature_selection', 'binary']:
         params[key] = log[key]
 
     log = read_log(os.path.join(path, 'params.json'))
@@ -843,8 +844,6 @@ def evaluate(train_dir):
 
     os.makedirs(path, exist_ok = True)
 
-    params['output'] = os.path.join(path, params['output'])
-
     if not params['output'].endswith('.csv'):
         params['output'] = params['output'] + '.csv'
 
@@ -854,10 +853,10 @@ def evaluate(train_dir):
 
     params['data_config'] = data_config
 
-    params['model'] = os.path.join(os.path.join(working_directory, 'train', params.pop('train_dir')), 'model.pickle')
+    os.chdir(path)
 
-    os.chdir(os.path.dirname(path))
-
+    params.pop('train_dir')
+    
     evaluate(**params)
     append(f'evaluate ({train_dir} {os.path.basename(params["output"]).replace(".csv", "")})')
 

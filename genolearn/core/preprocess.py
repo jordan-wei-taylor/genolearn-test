@@ -353,7 +353,7 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
     msg(f'executed "preprocess combine"')
 
 
-def preprocess_meta(output, meta_path, identifier_column, target_column, group_column, train_values, test_values, ptrain):
+def preprocess_meta(output, meta_path, identifier_column, target_column, group_column, train_values, val_values, ptrain):
 
     import pandas as pd
     import json
@@ -369,12 +369,12 @@ def preprocess_meta(output, meta_path, identifier_column, target_column, group_c
     meta_df  = meta_df.loc[meta_df[identifier_column].isin(valid)]
 
     if group_column == 'None':
-        group_column                      = 'train_test'
+        group_column                      = 'train_val'
         n                                 = len(meta_df)
         i                                 = int(n * ptrain + 0.5)
         r                                 = np.random.permutation(n)
-        values                            = np.array(['Train'] * n)
-        values[r[i:]]                     = 'Test'
+        values                            = np.array(['train'] * n)
+        values[r[i:]]                     = 'val'
         meta_df[group_column]             = values
         
     groups    = sorted(set(meta_df[group_column]))
@@ -390,13 +390,13 @@ def preprocess_meta(output, meta_path, identifier_column, target_column, group_c
         meta_json['group'][group] = list(meta_df.loc[meta_df[group_column] == group, identifier_column])
 
     meta_json['Train'] = []
-    meta_json['Test' ] = []
+    meta_json['Val' ]  = []
 
     for group in groups:
         if group in train_values:
             meta_json['Train'].append(group)
-        elif group in test_values:
-            meta_json['Test'].append(group)
+        elif group in val_values:
+            meta_json['Val'  ].append(group)
     
     os.makedirs('meta', exist_ok = True)
 
