@@ -1,3 +1,21 @@
+Version 0.1.3
+=============
+
+Bug Fixes
+---------
+
+
+Enhancements
+------------
+
+- added "\*" input to allow either
+  - all the remaining choices when the input is "\*" e.g. "\*" -> "{choice1}, {choice2}, ..."
+  - take the default and append to string e.g. "\*-example" -> "{default}-example"
+- factored code for consistency
+
+
+<br>
+
 Version 0.1.2
 =============
 

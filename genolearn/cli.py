@@ -1,6 +1,6 @@
 from   genolearn.logger import up, clear, print_dict
-from   genolearn.utils  import prompt, _prompt, set_params, get_params
-from   genolearn        import __version__, ls, working_directory, get_active, path
+from   genolearn.utils  import prompt, _prompt, set_params, get_params, ls, working_directory, get_active, path
+from   genolearn        import __version__
 from   genolearn.core   import metadata as _metadata
 
 from   shutil           import rmtree
@@ -47,7 +47,7 @@ def check_working_directory():
 
 PRE = \
 f"""
-Genolearn ({__version__}) Command Line Interface
+GenoLearn ({__version__}) Command Line Interface
 
 GenoLearn is designed to enable researchers to perform Machine Learning on their genome
 sequence data such as fsm-lite or unitig files.
@@ -188,15 +188,6 @@ def read_log(file):
         log    = json.loads(string[string.index('{'):])
         return log
 
-def check_history(string):
-    """ Checks if any previously executed commands starts with {string}"""
-    with path.open('.genolearn') as f:
-        history = json.load(f)['history']
-        for line in history:
-            if line.startswith(string):
-                return True
-        return False
-
 def select_train_dir(command, func, back, train_dir_func = None):
     """ Wrapper for first selecting training directory """
     def _select_train_dir():
@@ -317,53 +308,6 @@ def __print(name, limit = 5):
         print(os.path.join(dirname, os.path.basename(name)), '\n')
         with open(name) as f:
             print(f.read())
-
-def count(meta):
-    """ Class count distribution present in the metadata """
-    from genolearn.core.metadata import count
-    count(meta)
-
-def analyse(meta):
-    """ Analyse preprocessed metadata for class label distribution and suggested target subset list """
-    info  = dict(min_count  = dict(type = click.IntRange(0), default = 10),
-                 proportion = dict(type = click.BOOL, default = False))
-
-    print(f'{PRE}\n\nCommand: print metadata analyse\n\nParameters to analyse "{meta}"\n')
-    params = dict(meta = meta)
-    params.update(prompt(info))
-
-    params['meta'] = os.path.join('meta', params['meta'])
-    
-    from   genolearn.core.metadata import analyse
-    
-    os.chdir(working_directory)
-    if os.path.exists(params['meta']):
-        analyse(**params)
-    else:
-        print('execute genolearn preprocess first')
-
-def head(meta, num = 10):
-    """ Prints the first NUM rows of meta data """
-    print(os.path.join('meta', meta), '\n')
-    meta   = path.join('meta', meta)
-    from genolearn.core.metadata import head
-    head(meta, num)
-
-
-def tail(meta, num = 10):
-    """ Prints the last NUM rows of meta data """
-    print(os.path.join('meta', meta), '\n')
-    meta   = path.join('meta', meta)
-    from genolearn.core.metadata import tail
-    tail(meta, num)
-
-
-def sample(meta, num = 10):
-    """ Prints random NUM rows of meta data """
-    print(os.path.join('meta', meta), '\n')
-    meta   = path.join('meta', meta)
-    from genolearn.core.metadata import sample
-    sample(meta, num)
 
 def select_meta(command, pre, func):
     """ Wrapper for first selecting metadata """
@@ -596,7 +540,7 @@ def preprocess():
                              'func' : preprocess_combine_data},
                'meta'     : {'info' : 'preprocesses meta data',
                              'func' : preprocess_meta}}
-    enum(options, 'preprocess', 'Select a preprocess subcommand', k = None if check_history('preprocess sequence') else 1)
+    enum(options, 'preprocess', 'Select a preprocess subcommand', k = None if 'preprocess' in path.listdir() else 1)
 
 """ genolearn feature-selection """
 
@@ -626,7 +570,7 @@ def _feature_selection():
         options = {}
         for module in modules:
             mpath  = os.path.join(Path, module)
-            prompt = module.replace('.py', '')
+            prompt = module.replace('.py', '').replace('_', '-')
             exists = detect('meta', prompt)
             binary = prompt.endswith('binary')
             if 'fisher' in module:
@@ -634,10 +578,9 @@ def _feature_selection():
             else:
                 info   = ''
             if binary:
-                inf    = ' '.join([info,  '(binary)'])
-            else:
-                inf    = info
-            options[mpath] = {'prompt' : prompt, 'info' : exists if exists else inf, 'func' : func}
+                info   = f'{info} (binary)'
+
+            options[mpath] = {'prompt' : prompt, 'info' : exists if exists else info, 'func' : func}
         for dir in set([working_directory, os.path.abspath('.')]):
             for file in os.listdir(dir):
                 if file.endswith('.py'):
@@ -669,40 +612,41 @@ def feature_selection(meta, module):
 
 """ genolearn model-config """
 
-classifiers = dict(
-                  logistic_regression = \
-                  dict(model = 'LogisticRegression',
-                          config_name = dict(type = click.STRING, default = 'logistic-regression'),
-                          penalty = dict(type = click.Choice(['l1', 'l2', 'elasticnet', 'none']), default = 'l2', show_choices = True),
-                          dual = dict(type = click.BOOL, default = False),
-                          tol = dict(type = click.FloatRange(1e-8), default = 1e-4),
-                          C = dict(type = click.FloatRange(1e-8), default = 1.),
-                          fit_intercept = dict(type = click.BOOL, default = True),
-                          class_weight = dict(type = click.Choice(['balanced', 'None']), default = 'None', show_choices = True),
-                          random_state = dict(type = click.INT, default = None),
-                          solver = dict(type = click.Choice(['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']), default = 'lbfgs', show_choices = True),
-                          max_iter = dict(type = click.IntRange(1), default = 100),
-                          multi_class = dict(type = click.Choice(['auto', 'ovr', 'multinomial']), default = 'auto', show_choices = True),
-                          n_jobs = dict(type = click.IntRange(-1), default = -1),
-                          l1_ratio = dict(type = click.FloatRange(0), default = 1.)),
-                  random_forest = \
-                  dict(model = 'RandomForestClassifier',
-                          config_name = dict(type = click.STRING, default = 'random-forest'),
-                          n_estimators = dict(type = click.IntRange(1), default = 100),
-                          criterion = dict(type = click.Choice(['gini', 'entropy', 'log_loss']), default = 'gini', show_choices = True),
-                          max_depth = dict(type = click.IntRange(1), default = None),
-                          min_samples_split = dict(type = click.IntRange(1), default = 2),
-                          min_samples_leaf = dict(type = click.IntRange(1), default = 1),
-                          min_weight_fraction_leaf = dict(type = click.FloatRange(0., 0.5), default = 0.),
-                          max_features = dict(type = click.Choice(['sqrt', 'log2', 'None']), default = 'sqrt', show_choices = True),
-                          max_leaf_nodes = dict(type = click.IntRange(1), default = None),
-                          min_impurity_decrease = dict(type = click.FloatRange(0), default = 0.),
-                          bootstrap = dict(type = click.BOOL, default = True),
-                          oob_score = dict(type = click.BOOL, default = False),
-                          n_jobs = dict(type = click.IntRange(-1), default = -1),
-                          random_state = dict(type = click.INT, default = None),
-                          class_weight = dict(type = click.Choice(['balanced', 'balanced_subsample', 'None']), default = None, show_choices = True))
-                  )
+classifiers = dict( logistic_regression = dict(
+                        model = 'LogisticRegression',
+                        config_name = dict(type = click.STRING, default = 'logistic-regression'),
+                        penalty = dict(type = click.Choice(['l1', 'l2', 'elasticnet', 'none']), default = 'l2', show_choices = True),
+                        dual = dict(type = click.BOOL, default = False),
+                        tol = dict(type = click.FloatRange(1e-8), default = 1e-4),
+                        C = dict(type = click.FloatRange(1e-8), default = 1.),
+                        fit_intercept = dict(type = click.BOOL, default = True),
+                        solver = dict(type = click.Choice(['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']), default = 'lbfgs', show_choices = True),
+                        max_iter = dict(type = click.IntRange(1), default = 100),
+                        multi_class = dict(type = click.Choice(['auto', 'ovr', 'multinomial']), default = 'auto', show_choices = True),
+                        l1_ratio = dict(type = click.FloatRange(0), default = 1.),
+                        n_jobs = dict(type = click.IntRange(-1), default = -1),
+                        class_weight = dict(type = click.Choice(['balanced', 'None']), default = 'None', show_choices = True),
+                        random_state = dict(type = click.INT, default = None)
+                    ),
+                    random_forest = dict(
+                        model = 'RandomForestClassifier',
+                        config_name = dict(type = click.STRING, default = 'random-forest'),
+                        n_estimators = dict(type = click.IntRange(1), default = 100),
+                        criterion = dict(type = click.Choice(['gini', 'entropy', 'log_loss']), default = 'gini', show_choices = True),
+                        max_depth = dict(type = click.IntRange(1), default = None),
+                        min_samples_split = dict(type = click.IntRange(1), default = 2),
+                        min_samples_leaf = dict(type = click.IntRange(1), default = 1),
+                        min_weight_fraction_leaf = dict(type = click.FloatRange(0., 0.5), default = 0.),
+                        max_features = dict(type = click.Choice(['sqrt', 'log2', 'None']), default = 'sqrt', show_choices = True),
+                        max_leaf_nodes = dict(type = click.IntRange(1), default = None),
+                        min_impurity_decrease = dict(type = click.FloatRange(0), default = 0.),
+                        bootstrap = dict(type = click.BOOL, default = True),
+                        oob_score = dict(type = click.BOOL, default = False),
+                        n_jobs = dict(type = click.IntRange(-1), default = -1),
+                        class_weight = dict(type = click.Choice(['balanced', 'balanced_subsample', 'None']), default = None, show_choices = True),
+                        random_state = dict(type = click.INT, default = None)
+                    )
+                )
 
 def _model(name):
     """ Given a model name, prompts user for hyperparameter settings """

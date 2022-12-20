@@ -52,10 +52,8 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, max_features, verb
     from   genolearn              import utils
 
     from   pathos.multiprocessing import cpu_count, Pool
-    from   shutil                 import rmtree
 
     import resource
-
     import json
     import gzip
 
@@ -89,7 +87,7 @@ def preprocess(preprocess_dir, data, batch_size, n_processes, max_features, verb
     with _open(os.path.expanduser(data)) as gz:
         
         if os.path.exists(preprocess_dir):                    
-            rmtree(preprocess_dir)
+            shutil.rmtree(preprocess_dir)
 
         os.mkdir(preprocess_dir)
         os.chdir(preprocess_dir)
@@ -208,14 +206,10 @@ def combine(preprocess_dir, data, batch_size, n_processes, max_features, verbose
     from   genolearn              import utils
     from   pathos.multiprocessing import cpu_count, Pool
 
-    import numpy  as np
-
     import resource
 
     import json
     import gzip
-    import re
-    import os
 
     assert os.path.exists(preprocess_dir)
 

@@ -1,15 +1,10 @@
 def train(output_dir, meta, model_config, feature_selection, num_features, binary, min_count, target_subset, metric, aggregate_func):
 
-    import os
-    import json
-
-    command = 'genolearn train'
-
     from genolearn.utils                 import create_log
     from genolearn.models.classification import get_model
     from genolearn.models                import grid_predictions
     from genolearn.dataloader            import DataLoader
-    from genolearn.logger                import msg, Writing, Computing, Waiting
+    from genolearn.logger                import msg, Writing, Waiting
 
     import warnings
     import numpy as np
@@ -86,4 +81,4 @@ def train(output_dir, meta, model_config, feature_selection, num_features, binar
 
     create_log('train', output_dir)
 
-    msg(f'executed "{command}"')
+    msg(f'executed "genolearn train"')
