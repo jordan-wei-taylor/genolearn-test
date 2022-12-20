@@ -448,6 +448,12 @@ def preprocess_sequence(data):
     params = dict(data = data)
     params.update(prompt(info))
 
+    # <<<<<<<<<<<<< iOS temp fix >>>>>>>>>>>>>>>>>>>
+    import platform
+    if platform.system() == 'Darwin' and params['batch_size'] is None:
+        params['batch_size'] = 512
+    # <<<<<<<<<<<<< iOS temp fix >>>>>>>>>>>>>>>>>>>
+
     params['data']         = path.expanduser(path.join(active['data_dir'], data))
 
     if params['max_features'] != None:
@@ -500,6 +506,12 @@ def preprocess_combine(data):
     params = dict(data = data)
     params.update(prompt(info))
 
+    # <<<<<<<<<<<<< iOS temp fix >>>>>>>>>>>>>>>>>>>
+    import platform
+    if platform.system() == 'Darwin' and params['batch_size'] is None:
+        params['batch_size'] = 512
+    # <<<<<<<<<<<<< iOS temp fix >>>>>>>>>>>>>>>>>>>
+    
     meta   = read_log(path.join('preprocess', 'preprocess.log'))
     params['max_features'] = meta['max_features']
 
@@ -600,10 +612,25 @@ def _feature_selection():
         return f'({", ".join(ret)})' if ret else ''
         
     def _select_feature_selection(meta):
-        fisher  = os.path.join(os.path.dirname(__file__), 'core', 'feature_selection', 'fisher.py')
+        Path    = os.path.join(os.path.dirname(__file__), 'core', 'feature_selection')
         func    = lambda method : feature_selection(meta, method)
-        exists  = detect(meta, 'fisher')
-        options = {fisher : {'prompt' : 'fisher', 'info' : exists if exists else 'Fisher Score for Feature Selection', 'func' : func}}
+        options = {}
+        for module in os.listdir(Path):
+            if module.startswith('_'): continue
+            mpath  = os.path.join(Path, module)
+            prompt = module.replace('.py', '')
+            exists = detect('meta', prompt)
+            binary = prompt.endswith('b')
+            if 'fisher' in module:
+                info   = 'Fisher Score for Feature Selection'
+            else:
+                info   = ''
+            if binary:
+                prompt = ' '.join([prompt[:-1], '(binary)'])
+                inf    = ' '.join([info,  '(binary)'])
+            else:
+                inf    = info
+            options[mpath] = {'prompt' : prompt, 'info' : exists if exists else inf, 'func' : func}
         for dir in set([working_directory, os.path.abspath('.')]):
             for file in os.listdir(dir):
                 if file.endswith('.py'):
@@ -749,6 +776,9 @@ def train(meta, feature_selection, model_config):
                    aggregate_func = dict(default = 'weighted_mean', type = click.Choice(['mean', 'weighted_mean'])))
 
     params.update(prompt(info))
+
+    # ensure sorted unique values 
+    params['num_features'] = sorted(set(params['num_features']))
 
     os.chdir(working_directory)
     os.makedirs('train', exist_ok = True)

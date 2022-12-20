@@ -48,7 +48,7 @@ The user is prompted for parameters
 
 where
 
-+ ``batch_size`` determines how many concurrent identifiers to preprocess per run of the ``.gz`` file. By default, GenoLearn arbitrarily sets this to the minimum of your OS limit (RLIMIT_NOFILE) and :math:`2^14`.
++ ``batch_size`` determines how many concurrent identifiers to preprocess per run of the ``.gz`` file. By default, GenoLearn arbitrarily sets this to the minimum of your OS limit (RLIMIT_NOFILE) and :math:`2^14` or :math:`512` in the case of running on iOS.
 + ``n_processes`` determines how many processes to run when converting temp ``txt`` files to ``numpy`` arrays. By default, GenoLearn sets this to the number of physical CPU cores.
 + ``verbose`` determines the number of sequences to cycle through before printing a new line.
 + ``max_features`` determines the number of first number of sequences to preprocess. Mainly used for debugging purposes. Users should always leave this as the default ``None``.
