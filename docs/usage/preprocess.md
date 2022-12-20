@@ -24,11 +24,11 @@ and selecting the ``preprocess`` option number, the user will be prompted to sel
 
     Select a preprocess subcommand
 
-    1.  back                            goes to the previous command
+    0.  back                            goes to the previous command
 
-    2.  sequence                        preprocesses sequence data
-    3.  combine                         preprocesses sequence data and combines to previous preprocessing
-    4.  meta                            preprocesses meta data
+    1.  sequence                        preprocesses sequence data
+    2.  combine                         preprocesses sequence data and combines to previous preprocessing
+    3.  meta                            preprocesses meta data
 
 with ``combine`` and ``meta`` commands available upon having executed ``sequence``.
 
