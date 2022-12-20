@@ -1,6 +1,7 @@
 from   genolearn.logger import up, clear, print_dict
 from   genolearn.utils  import prompt, _prompt, set_params, get_params
 from   genolearn        import __version__, ls, working_directory, get_active, path
+from   genolearn.core   import metadata as _metadata
 
 from   shutil           import rmtree
 
@@ -317,6 +318,11 @@ def __print(name, limit = 5):
         with open(name) as f:
             print(f.read())
 
+def count(meta):
+    """ Class count distribution present in the metadata """
+    from genolearn.core.metadata import count
+    count(meta)
+
 def analyse(meta):
     """ Analyse preprocessed metadata for class label distribution and suggested target subset list """
     info  = dict(min_count  = dict(type = click.IntRange(0), default = 10),
@@ -328,7 +334,7 @@ def analyse(meta):
 
     params['meta'] = os.path.join('meta', params['meta'])
     
-    from   genolearn.core.data import analyse
+    from   genolearn.core.metadata import analyse
     
     os.chdir(working_directory)
     if os.path.exists(params['meta']):
@@ -340,7 +346,7 @@ def head(meta, num = 10):
     """ Prints the first NUM rows of meta data """
     print(os.path.join('meta', meta), '\n')
     meta   = path.join('meta', meta)
-    from genolearn.core.data import head
+    from genolearn.core.metadata import head
     head(meta, num)
 
 
@@ -348,7 +354,7 @@ def tail(meta, num = 10):
     """ Prints the last NUM rows of meta data """
     print(os.path.join('meta', meta), '\n')
     meta   = path.join('meta', meta)
-    from genolearn.core.data import tail
+    from genolearn.core.metadata import tail
     tail(meta, num)
 
 
@@ -356,13 +362,13 @@ def sample(meta, num = 10):
     """ Prints random NUM rows of meta data """
     print(os.path.join('meta', meta), '\n')
     meta   = path.join('meta', meta)
-    from genolearn.core.data import sample
+    from genolearn.core.metadata import sample
     sample(meta, num)
 
 def select_meta(command, pre, func):
     """ Wrapper for first selecting metadata """
     def _select_meta():
-        options = {meta : {'func' : func} for meta in metas}
+        options = {path.join('meta', meta) : {'func' : func, 'prompt' : meta} for meta in metas}
         enum(options, command, pre, back = metadata)
     return _select_meta
 
@@ -374,10 +380,11 @@ def metadata():
         pre     = 'Select metadata'
         return command, pre, func
 
-    options = {'analyse' : {'info' : 'analyses the metadata'                , 'func' : select_meta(*args(analyse))},
-               'head'    : {'info' : 'prints the head of the metadata'      , 'func' : select_meta(*args(head))},
-               'tail'    : {'info' : 'prints the tail of the metadata'      , 'func' : select_meta(*args(tail))},
-               'sample'  : {'info' : 'prints random entries of the metadata', 'func' : select_meta(*args(sample))}}
+    options = {'count'      : {'info' : 'count distribution of the metadata'     , 'func' : select_meta(*args(_metadata.count))},
+               'proportion' : {'info' : 'proportion distribution of the metadata', 'func' : select_meta(*args(_metadata.proportion))},
+               'head'       : {'info' : 'prints the head of the metadata'        , 'func' : select_meta(*args(_metadata.head))},
+               'tail'       : {'info' : 'prints the tail of the metadata'        , 'func' : select_meta(*args(_metadata.tail))},
+               'sample'     : {'info' : 'prints random entries of the metadata'  , 'func' : select_meta(*args(_metadata.sample))}}
     enum(options, 'print metadata', 'Prints metadata information', back = _print)
 
 def _print():
@@ -462,7 +469,7 @@ def preprocess_sequence(data):
     from multiprocessing import cpu_count
 
     if params['batch_size'] == None:
-        params['batch_size'] = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], 2 ** 14) # safety
+        params['batch_size'] = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], 2 ** 13) # safety
     if params['n_processes'] == None:
         params['n_processes'] = cpu_count()
 
@@ -511,7 +518,7 @@ def preprocess_combine(data):
     if platform.system() == 'Darwin' and params['batch_size'] is None:
         params['batch_size'] = 512
     # <<<<<<<<<<<<< iOS temp fix >>>>>>>>>>>>>>>>>>>
-    
+
     meta   = read_log(path.join('preprocess', 'preprocess.log'))
     params['max_features'] = meta['max_features']
 
@@ -523,7 +530,7 @@ def preprocess_combine(data):
     from multiprocessing import cpu_count
 
     if params['batch_size'] == None:
-        params['batch_size'] = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], 2 ** 14) # safety
+        params['batch_size'] = min(resource.getrlimit(resource.RLIMIT_NOFILE)[1], 2 ** 13) # safety
     if params['n_processes'] == None:
         params['n_processes'] = cpu_count()
 
@@ -614,19 +621,19 @@ def _feature_selection():
     def _select_feature_selection(meta):
         Path    = os.path.join(os.path.dirname(__file__), 'core', 'feature_selection')
         func    = lambda method : feature_selection(meta, method)
+        ls      = sorted([file for file in os.listdir(Path) if not file.startswith('_')])
+        modules = [file for file in ls if 'binary' not in file] + [file for file in ls if 'binary' in file]
         options = {}
-        for module in os.listdir(Path):
-            if module.startswith('_'): continue
+        for module in modules:
             mpath  = os.path.join(Path, module)
             prompt = module.replace('.py', '')
             exists = detect('meta', prompt)
-            binary = prompt.endswith('b')
+            binary = prompt.endswith('binary')
             if 'fisher' in module:
                 info   = 'Fisher Score for Feature Selection'
             else:
                 info   = ''
             if binary:
-                prompt = ' '.join([prompt[:-1], '(binary)'])
                 inf    = ' '.join([info,  '(binary)'])
             else:
                 inf    = info
