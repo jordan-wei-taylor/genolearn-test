@@ -914,10 +914,10 @@ def menu():
                      'genolearn-setup to setup this directory as the working directory')
         
 
-    # if a command has not been previously executed truncate options to not include other commands that rely on it.
+    # if a genolearn generated directory has not been generated with content truncate options to not include other commands that rely on it.
     else:
-        for i, command in enumerate(['preprocess meta', 'feature-selection', 'model', 'train'], 2):
-            if not check_history(command):
+        for i, dir in enumerate(['meta', 'feature-selection', 'model', 'train'], 2):
+            if dir not in path.listdir() or len(path.listdir(dir)) == 0:
                 k = i
                 break
     try:

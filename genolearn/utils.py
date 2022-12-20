@@ -114,6 +114,14 @@ def _prompt(msg, type, default, default_option = True, multiple = False, show_ch
             print('user input required!')
             return _prompt(msg, type, default, default_option, multiple, show_choices)
 
+    # utility to take default value as * e.g. *-example -> {default}-example
+    if value.startswith('*'):
+        if value.count('*') == 1 and default and default_option:
+            value = value.replace('*', default)
+        else:
+            _warn(value, 'valid')
+            return _prompt(msg, type, default, default_option, multiple, show_choices)
+
     # check range
     if 'range' in value:
 
