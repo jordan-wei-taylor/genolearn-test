@@ -22,7 +22,7 @@ def _analyse(meta, min_count, proportion):
 
     suggested_subset = count.index[:-1][count['Train'].values[:-1] >= min_count]
 
-    if len(suggested_subset) == len(count.index):
+    if len(suggested_subset) == (len(count.index) - 1):
         suggested_subset = None
 
     if proportion:
