@@ -35,12 +35,12 @@ def feature_selection(name, meta, method, module, log):
 
     from   genolearn.logger     import msg, Writing
     from   genolearn.dataloader import DataLoader
-    from   genolearn            import utils, working_directory
+    from   genolearn            import utils
 
     import numpy  as np
     import os
 
-    dataloader = DataLoader(meta, working_directory)
+    dataloader = DataLoader(meta, utils.working_directory)
     
     os.makedirs('feature-selection', exist_ok = True)
 

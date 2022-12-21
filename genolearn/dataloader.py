@@ -1,7 +1,6 @@
-from   genolearn import working_directory
+from   genolearn.utils import working_directory
 import os
 import json
-import scipy.sparse
 import numpy  as np
 import gzip
 import warnings

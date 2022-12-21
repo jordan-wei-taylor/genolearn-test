@@ -511,15 +511,18 @@ def preprocess_meta():
     target         = click.prompt('target                 ', type = click.Choice(valid_columns), show_choices = False)
 
     valid_columns -= set([target])
-    valid_columns |= set(['None'])
 
-    group          = click.prompt('group           ', type = click.Choice(valid_columns), show_choices = False, default = 'None')
+    if len(valid_columns) == 0:
+        group          = 'None'
+    else:
+        valid_columns |= set(['None'])
+        group          = click.prompt('group           ', type = click.Choice(valid_columns), show_choices = False, default = 'None')
 
     if group != 'None':
         groups       = set(sorted(set(meta_df[group])))
-        train_values = _prompt('train group values*    ', type = click.Choice(groups), default = None, default_option = False, multiple = True)
+        train_values = _prompt('train group values*    ', dict(type = click.Choice(groups), default = None, default_option = False, multiple = True))
         groups      -= set(train_values)
-        val_values   = _prompt('val group values*      ', type = click.Choice(groups), default = None, default_option = False, multiple = True)
+        val_values   = _prompt('val group values*      ', dict(type = click.Choice(groups), default = None, default_option = False, multiple = True))
         ptrain       = None
     else:
         train_values = ['train']
@@ -597,7 +600,7 @@ def feature_selection(meta, module):
     print(f'{PRE}\n\nCommand: feature-selection\n\nParameters for feature selection using "{meta}" meta with "{os.path.basename(module)[:-3]}" method\n')
     py     = os.path.basename(module).replace('.py', '')
     params = dict(meta = meta, method = py, module = module.replace(os.path.expanduser('~'), '~'))
-    info   = dict(name = dict(default = f'{params["meta"]}-{py}', type = click.STRING))
+    info   = dict(name = dict(default = f'{params["meta"]}-{py}'))
     
     params.update(prompt(info))
 
@@ -614,7 +617,7 @@ def feature_selection(meta, module):
 
 classifiers = dict( logistic_regression = dict(
                         model = 'LogisticRegression',
-                        config_name = dict(type = click.STRING, default = 'logistic-regression'),
+                        config_name = dict(default = 'logistic-regression'),
                         penalty = dict(type = click.Choice(['l1', 'l2', 'elasticnet', 'none']), default = 'l2', show_choices = True),
                         dual = dict(type = click.BOOL, default = False),
                         tol = dict(type = click.FloatRange(1e-8), default = 1e-4),
@@ -630,7 +633,7 @@ classifiers = dict( logistic_regression = dict(
                     ),
                     random_forest = dict(
                         model = 'RandomForestClassifier',
-                        config_name = dict(type = click.STRING, default = 'random-forest'),
+                        config_name = dict(default = 'random-forest'),
                         n_estimators = dict(type = click.IntRange(1), default = 100),
                         criterion = dict(type = click.Choice(['gini', 'entropy', 'log_loss']), default = 'gini', show_choices = True),
                         max_depth = dict(type = click.IntRange(1), default = None),
@@ -652,8 +655,15 @@ def _model(name):
     """ Given a model name, prompts user for hyperparameter settings """
     classifier  = classifiers[name]
     params      = {'model' : classifier.pop('model')}
+    for key in classifier:
+        if key == 'config_name': continue
+        classifier[key]['multiple'] = True
     print(f'{PRE}\n\nCommand: model-config\n\nParameters for {params["model"]}\n')
-    params.update(prompt(classifier))
+    model_config = prompt(classifier)
+    for key, value in model_config.items():
+        if isinstance(value, list) and len(value) == 1:
+            model_config[key] = value[0]
+    params.update(model_config)
     config_name = params.pop('config_name')
     Path        = path.join('model')
     os.makedirs(Path, exist_ok = True)
