@@ -1,8 +1,5 @@
-Version 0.1.3
+Version 1.0.0
 =============
-
-Bug Fixes
----------
 
 
 Enhancements
@@ -14,6 +11,10 @@ Enhancements
 - factored code for consistency
 - inline warning if wrong user input
 
+Misc
+----
+
+- switched from branch to tag versioning
 
 <br>
 

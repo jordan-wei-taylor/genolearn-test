@@ -1,6 +1,6 @@
 package:
-  name: genolearn-dev
-  version: 0.1.3
+  name: genolearn
+  version: 1.0.0
 
 source:
   path: .
