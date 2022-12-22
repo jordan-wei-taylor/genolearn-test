@@ -100,6 +100,7 @@ def pause(func):
         for _ in range(4):
             func(*args)
             sleep(1)
+        print(clear, end = '')
     return wrapper
 
 @pause
@@ -119,9 +120,9 @@ def _convert_range(string):
 def _prompt(key, info, space = 0):
 
     msg   = _gen_prompt(key, info, space)
-
+        
     # user input
-    value = input(f'{clear}{msg}: ')
+    value = input(f'{msg}: ')
 
     # convenience
     dtype = info['type']
@@ -132,7 +133,7 @@ def _prompt(key, info, space = 0):
             value = str(_default(info))
         else:
             _warn_missing(msg)
-            return _prompt(msg, info, space)
+            return _prompt(key, info, space)
 
     # utility to take the remainder of the choices if value = *
     if value == '*' and isinstance(dtype, click.Choice):
@@ -145,7 +146,7 @@ def _prompt(key, info, space = 0):
         else:
             # no default setting
             _warn(msg, value, 'valid')
-            return _prompt(msg, info, space)
+            return _prompt(key, info, space)
 
     # check range
     if 'range' in value:
@@ -153,7 +154,7 @@ def _prompt(key, info, space = 0):
         # warn and re-input if type is not int
         if (dtype != click.INT) and not isinstance(dtype, click.IntRange):
             _warn(msg, value, dtype)
-            return _prompt(msg, info, space)
+            return _prompt(key, info, space)
 
         # convert range string to list of integers
         value = _convert_range(value)
@@ -168,7 +169,7 @@ def _prompt(key, info, space = 0):
                 check = _check(value, dtype)
                 if not check:
                     _warn(msg, value, dtype)
-                    return _prompt(msg, info, space)
+                    return _prompt(key, info, space)
             values = [None if value == None else value for value in map(dtype, values)]
             return values
     elif ',' in value:
@@ -182,7 +183,7 @@ def _prompt(key, info, space = 0):
             return value
         return [dtype(value)] if info.get('multiple') else dtype(value)
     _warn(msg, value, dtype)
-    return _prompt(msg, info, space)
+    return _prompt(key, info, space)
     
 def _default(info):
     dtype = info['type']

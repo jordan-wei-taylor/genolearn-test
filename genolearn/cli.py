@@ -599,7 +599,7 @@ def feature_selection(meta, module):
     """ Computes Feature Selection (Fisher by default) """
     print(f'{PRE}\n\nCommand: feature-selection\n\nParameters for feature selection using "{meta}" meta with "{os.path.basename(module)[:-3]}" method\n')
     py     = os.path.basename(module).replace('.py', '')
-    params = dict(meta = meta, method = py, module = module.replace(os.path.expanduser('~'), '~'))
+    params = dict(meta = meta, method = py, module = path.expanduser(module).replace('_', '-'))
     info   = dict(name = dict(default = f'{params["meta"]}-{py}'))
     
     params.update(prompt(info))
@@ -719,6 +719,7 @@ def train(meta, feature_selection, model_config):
     print(f'{PRE}\n\nCommand: train\n\nTrain parameters for metadata "{meta}" with feature-selection "{feature_selection}" and model config "{model_config}"\n')
 
     default = f'{feature_selection}-{model_config}'
+    binary  = 'binary' in default
     group   = ['Train', 'Test']
     with path.open(path.join('meta', meta)) as f:
         meta_ = json.load(f)
@@ -730,7 +731,7 @@ def train(meta, feature_selection, model_config):
     choice  = click.Choice(sorted(set(_metrics) - {'count'}))
     info    = dict(output_dir = dict(type = click.Path(), default = default),
                    num_features = dict(default = 1000, type = click.IntRange(1), multiple = True),
-                   binary = dict(default = False, type = click.BOOL),
+                   binary = dict(default = binary, type = click.BOOL),
                    min_count = dict(default = 0, type = click.IntRange(0)),
                    target_subset = dict(default = 'None', type = click.Choice(group)),
                    metric = dict(default = 'f1_score', type = choice, show_choices = False),

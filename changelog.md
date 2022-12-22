@@ -1,3 +1,13 @@
+Version 1.0.1
+=============
+
+Bug Fixes
+---------
+
+- mis-print when user input type does not conform to accepted types
+
+<br>
+
 Version 1.0.0
 =============
 
